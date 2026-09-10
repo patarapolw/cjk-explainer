@@ -4,17 +4,26 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "start": "tauri dev",
+    "mobile": "tauri dev -c src-tauri/tauri.mobile.conf.json",
+    "android": "tauri android run",
+    "android:install:debug": "adb install -r src-tauri/gen/android/app/build/outputs/apk/arm64/debug/app-arm64-debug.apk",
+    "android:server": "tauri android dev",
+    "android:build:debug": "tauri android build --debug",
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri"
   },
   "dependencies": {
+    "@primeicons/vue": "^8.0.1",
+    "@primeuix/themes": "^3.0.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-clipboard-manager": "~2",
     "@tauri-apps/plugin-http": "~2.6.0",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-sql": "~2.4.1",
+    "primevue": "^5.0.1",
     "vue": "^3.5.13"
   },
   "devDependencies": {

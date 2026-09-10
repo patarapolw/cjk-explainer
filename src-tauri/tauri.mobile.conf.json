@@ -1,0 +1,13 @@
+{
+  "identifier": "cc.polv.cjk-explainer",
+  "app": {
+    "windows": [
+      {
+        "title": "cjk-explainer",
+        "width": 450,
+        "height": 800,
+        "maximized": false
+      }
+    ]
+  }
+}

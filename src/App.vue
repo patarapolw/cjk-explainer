@@ -1,9 +1,55 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+
+import SidebarLayout from "primevue/sidebarlayout";
+import SidebarBackdrop from "primevue/sidebarbackdrop";
+import Sidebar from "primevue/sidebar";
+import SidebarMain from "primevue/sidebarmain";
+import SidebarTrigger from "primevue/sidebartrigger";
+import SidebarSpacer from "primevue/sidebarspacer";
+import SidebarAside from "primevue/sidebaraside";
+import SidebarPanel from "primevue/sidebarpanel";
+import SidebarContent from "primevue/sidebarcontent";
+import SidebarFooter from "primevue/sidebarfooter";
+import SidebarGroup from "primevue/sidebargroup";
+import SidebarGroupContent from "primevue/sidebargroupcontent";
+import SidebarMenu from "primevue/sidebarmenu";
+import SidebarMenuItem from "primevue/sidebarmenuitem";
+import SidebarMenuButton from "primevue/sidebarmenubutton";
+
+import SidebarIcon from "@primeicons/vue/sidebar";
+import TextColorIcon from "@primeicons/vue/text-color";
+import CogIcon from "@primeicons/vue/cog";
+import CommentIcon from "@primeicons/vue/comment";
 
 const greetMsg = ref("");
 const name = ref("");
+
+const isMobile = ref(false);
+const navOpen = ref(false);
+const open = ref(false);
+let mql: MediaQueryList | null = null;
+function onMqlChange(event: MediaQueryListEvent) {
+  isMobile.value = event.matches;
+  navOpen.value = !event.matches;
+}
+
+onMounted(() => {
+  if (typeof window === "undefined") return;
+
+  mql = window.matchMedia("(max-width: 1023px)");
+  isMobile.value = mql.matches;
+  // navOpen.value = !isMobile.value;
+
+  mql.addEventListener("change", onMqlChange);
+});
+
+onBeforeUnmount(() => {
+  if (mql && onMqlChange) {
+    mql.removeEventListener("change", onMqlChange);
+  }
+});
 
 async function greet() {
   // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -12,28 +58,123 @@ async function greet() {
 </script>
 
 <template>
-  <main class="container">
-    <h1>Welcome to Tauri + Vue</h1>
+  <SidebarLayout>
+    <SidebarBackdrop v-if="isMobile && (navOpen || open)" />
+    <Sidebar
+      id="nav"
+      side="left"
+      :collapsible="isMobile ? 'offcanvas' : 'icon'"
+      :overlay="isMobile"
+      v-model:open="navOpen"
+      width="14rem"
+    >
+      <SidebarSpacer />
+      <SidebarAside>
+        <SidebarPanel>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton :is-active="true">
+                      <TextColorIcon />
+                      <span>Text</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
 
-    <div class="row">
-      <a href="https://vite.dev" target="_blank">
-        <img src="/vite.svg" class="logo vite" alt="Vite logo" />
-      </a>
-      <a href="https://tauri.app" target="_blank">
-        <img src="/tauri.svg" class="logo tauri" alt="Tauri logo" />
-      </a>
-      <a href="https://vuejs.org/" target="_blank">
-        <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-      </a>
-    </div>
-    <p>Click on the Tauri, Vite, and Vue logos to learn more.</p>
+          <SidebarFooter>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton>
+                  <CogIcon />
+                  <span>Settings</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </SidebarPanel>
+      </SidebarAside>
+    </Sidebar>
 
-    <form class="row" @submit.prevent="greet">
-      <input id="greet-input" v-model="name" placeholder="Enter a name..." />
-      <button type="submit">Greet</button>
-    </form>
-    <p>{{ greetMsg }}</p>
-  </main>
+    <SidebarMain>
+      <header
+        style="
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          height: 3rem;
+          padding: 0.5rem;
+          gap: 0.5rem;
+        "
+      >
+        <SidebarTrigger
+          target="nav"
+          severity="secondary"
+          :text="true"
+          size="small"
+        >
+          <SidebarIcon />
+        </SidebarTrigger>
+        <span class="text-sm font-medium flex-1" style="flex-grow: 1">
+          Dashboard
+        </span>
+        <SidebarTrigger
+          target="ai"
+          severity="secondary"
+          :text="true"
+          size="small"
+        >
+          <CommentIcon />
+        </SidebarTrigger>
+      </header>
+      <main class="container">
+        <h1>Welcome to Tauri + Vue</h1>
+
+        <div class="row">
+          <a href="https://vite.dev" target="_blank">
+            <img src="/vite.svg" class="logo vite" alt="Vite logo" />
+          </a>
+          <a href="https://tauri.app" target="_blank">
+            <img src="/tauri.svg" class="logo tauri" alt="Tauri logo" />
+          </a>
+          <a href="https://vuejs.org/" target="_blank">
+            <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
+          </a>
+        </div>
+        <p>Click on the Tauri, Vite, and Vue logos to learn more.</p>
+
+        <form class="row" @submit.prevent="greet">
+          <input
+            id="greet-input"
+            v-model="name"
+            placeholder="Enter a name..."
+          />
+          <button type="submit">Greet</button>
+        </form>
+        <p>{{ greetMsg }}</p>
+      </main>
+    </SidebarMain>
+
+    <Sidebar
+      id="ai"
+      side="right"
+      collapsible="offcanvas"
+      overlay
+      v-model:open="open"
+      width="18rem"
+    >
+      <SidebarSpacer />
+      <SidebarAside>
+        <SidebarPanel>
+          <SidebarContent> Hello? </SidebarContent>
+        </SidebarPanel>
+      </SidebarAside>
+    </Sidebar>
+  </SidebarLayout>
 </template>
 
 <style scoped>
@@ -44,9 +185,20 @@ async function greet() {
 .logo.vue:hover {
   filter: drop-shadow(0 0 2em #249b73);
 }
-
 </style>
+
 <style>
+body {
+  margin: 0;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+}
+
 :root {
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
   font-size: 16px;
@@ -156,5 +308,4 @@ button {
     background-color: #0f0f0f69;
   }
 }
-
 </style>

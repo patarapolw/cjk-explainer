@@ -8,8 +8,12 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "clipboard-manager:default",
-    "http:default",
-    "sql:default"
+    "clipboard-manager:allow-read-text",
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "https://api.deepseek.com/chat/completions" }]
+    },
+    "sql:default",
+    "sql:allow-execute"
   ]
 }
