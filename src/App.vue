@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
-import { invoke } from "@tauri-apps/api/core";
 
 import SidebarLayout from "primevue/sidebarlayout";
 import SidebarBackdrop from "primevue/sidebarbackdrop";
@@ -21,10 +20,6 @@ import SidebarMenuButton from "primevue/sidebarmenubutton";
 import SidebarIcon from "@primeicons/vue/sidebar";
 import TextColorIcon from "@primeicons/vue/text-color";
 import CogIcon from "@primeicons/vue/cog";
-import CommentIcon from "@primeicons/vue/comment";
-
-const greetMsg = ref("");
-const name = ref("");
 
 const isMobile = ref(false);
 const navOpen = ref(false);
@@ -50,11 +45,6 @@ onBeforeUnmount(() => {
     mql.removeEventListener("change", onMqlChange);
   }
 });
-
-async function greet() {
-  // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-  greetMsg.value = await invoke("greet", { name: name.value });
-}
 </script>
 
 <template>
@@ -122,70 +112,11 @@ async function greet() {
         <span class="text-sm font-medium flex-1" style="flex-grow: 1">
           Dashboard
         </span>
-        <SidebarTrigger
-          target="ai"
-          severity="secondary"
-          :text="true"
-          size="small"
-        >
-          <CommentIcon />
-        </SidebarTrigger>
       </header>
-      <main class="container">
-        <h1>Welcome to Tauri + Vue</h1>
-
-        <div class="row">
-          <a href="https://vite.dev" target="_blank">
-            <img src="/vite.svg" class="logo vite" alt="Vite logo" />
-          </a>
-          <a href="https://tauri.app" target="_blank">
-            <img src="/tauri.svg" class="logo tauri" alt="Tauri logo" />
-          </a>
-          <a href="https://vuejs.org/" target="_blank">
-            <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-          </a>
-        </div>
-        <p>Click on the Tauri, Vite, and Vue logos to learn more.</p>
-
-        <form class="row" @submit.prevent="greet">
-          <input
-            id="greet-input"
-            v-model="name"
-            placeholder="Enter a name..."
-          />
-          <button type="submit">Greet</button>
-        </form>
-        <p>{{ greetMsg }}</p>
-      </main>
+      <RouterView />
     </SidebarMain>
-
-    <Sidebar
-      id="ai"
-      side="right"
-      collapsible="offcanvas"
-      overlay
-      v-model:open="open"
-      width="18rem"
-    >
-      <SidebarSpacer />
-      <SidebarAside>
-        <SidebarPanel>
-          <SidebarContent> Hello? </SidebarContent>
-        </SidebarPanel>
-      </SidebarAside>
-    </Sidebar>
   </SidebarLayout>
 </template>
-
-<style scoped>
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
-
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #249b73);
-}
-</style>
 
 <style>
 body {
@@ -210,31 +141,6 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
-}
-
-.container {
-  margin: 0;
-  padding-top: 10vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
-  display: flex;
-  justify-content: center;
 }
 
 a {
@@ -280,10 +186,6 @@ button:active {
 input,
 button {
   outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
 }
 
 @media (prefers-color-scheme: dark) {
