@@ -1,3 +1,80 @@
+<template>
+  <SidebarLayout class="layout">
+    <SidebarBackdrop v-if="isMobile && (navOpen || open)" />
+    <Sidebar
+      id="nav"
+      side="left"
+      :collapsible="isMobile ? 'offcanvas' : 'icon'"
+      :overlay="isMobile"
+      v-model:open="navOpen"
+      width="14rem"
+    >
+      <SidebarSpacer />
+      <SidebarAside>
+        <SidebarPanel>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <RouterLink
+                      to="/"
+                      v-bind="$props"
+                      custom
+                      v-slot="{ isActive, navigate }"
+                    >
+                      <SidebarMenuButton
+                        :is-active="isActive"
+                        @click="navigate"
+                      >
+                        <TextColorIcon />
+                        <span>Text</span>
+                      </SidebarMenuButton>
+                    </RouterLink>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+
+          <SidebarFooter>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <RouterLink
+                  to="/settings"
+                  v-bind="$props"
+                  custom
+                  v-slot="{ isActive, navigate }"
+                >
+                  <SidebarMenuButton :is-active="isActive" @click="navigate">
+                    <CogIcon />
+                    <span>Settings</span>
+                  </SidebarMenuButton>
+                </RouterLink>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </SidebarPanel>
+      </SidebarAside>
+    </Sidebar>
+
+    <SidebarMain>
+      <header class="header">
+        <SidebarTrigger
+          target="nav"
+          severity="secondary"
+          :text="true"
+          size="small"
+        >
+          <SidebarIcon />
+        </SidebarTrigger>
+        <span class="header-panel"> Dashboard </span>
+      </header>
+      <RouterView />
+    </SidebarMain>
+  </SidebarLayout>
+</template>
+
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
 
@@ -46,66 +123,6 @@ onBeforeUnmount(() => {
   }
 });
 </script>
-
-<template>
-  <SidebarLayout class="layout">
-    <SidebarBackdrop v-if="isMobile && (navOpen || open)" />
-    <Sidebar
-      id="nav"
-      side="left"
-      :collapsible="isMobile ? 'offcanvas' : 'icon'"
-      :overlay="isMobile"
-      v-model:open="navOpen"
-      width="14rem"
-    >
-      <SidebarSpacer />
-      <SidebarAside>
-        <SidebarPanel>
-          <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton :is-active="true">
-                      <TextColorIcon />
-                      <span>Text</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
-
-          <SidebarFooter>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <CogIcon />
-                  <span>Settings</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarFooter>
-        </SidebarPanel>
-      </SidebarAside>
-    </Sidebar>
-
-    <SidebarMain>
-      <header class="header">
-        <SidebarTrigger
-          target="nav"
-          severity="secondary"
-          :text="true"
-          size="small"
-        >
-          <SidebarIcon />
-        </SidebarTrigger>
-        <span class="header-panel"> Dashboard </span>
-      </header>
-      <RouterView />
-    </SidebarMain>
-  </SidebarLayout>
-</template>
 
 <style scoped>
 .layout {
