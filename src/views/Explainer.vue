@@ -1,74 +1,103 @@
 <template>
   <main class="container">
-    <h1>Welcome to Tauri + Vue</h1>
-
     <div class="row">
-      <a href="https://vite.dev" target="_blank">
-        <img src="/vite.svg" class="logo vite" alt="Vite logo" />
-      </a>
-      <a href="https://tauri.app" target="_blank">
-        <img src="/tauri.svg" class="logo tauri" alt="Tauri logo" />
-      </a>
-      <a href="https://vuejs.org/" target="_blank">
-        <img src="../assets/vue.svg" class="logo vue" alt="Vue logo" />
-      </a>
+      <InputText class="flex-grow-1" v-model="currentText" />
     </div>
-    <p>Click on the Tauri, Vite, and Vue logos to learn more.</p>
+    <div class="row">
+      <div class="flex-grow-1"></div>
+      <label class="row" @click.prevent="toggleClipboardMonitor()">
+        <span style="margin-right: -0.5em">Clipboard</span>
+        <ToggleSwitch :model-value="clipboardInterval !== 0" />
+      </label>
+      <Button type="button" icon-only @click="isDialog = true">
+        <IconPlus />
+      </Button>
+    </div>
 
-    <form class="row" @submit.prevent="greet">
-      <input id="greet-input" v-model="name" placeholder="Enter a name..." />
-      <button type="submit">Greet</button>
-    </form>
-    <p>{{ greetMsg }}</p>
+    <Dialog v-model:visible="isDialog" modal dismissable-mask>
+      <Textarea class="textarea" v-model="currentText"></Textarea>
+    </Dialog>
   </main>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import { invoke } from "@tauri-apps/api/core";
+import InputText from "primevue/inputtext";
+import ToggleSwitch from "primevue/toggleswitch";
+import Button from "primevue/button";
+import Dialog from "primevue/dialog";
+import Textarea from "primevue/textarea";
 
-const greetMsg = ref("");
-const name = ref("");
+import IconPlus from "@primeicons/vue/plus";
 
-async function greet() {
-  // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-  greetMsg.value = await invoke("greet", { name: name.value });
+import { readText } from "@tauri-apps/plugin-clipboard-manager";
+
+import { onBeforeUnmount, ref } from "vue";
+
+const currentText = ref("");
+const isDialog = ref(false);
+
+const clipboardInterval = ref(0);
+const clipboardText = ref("");
+
+onBeforeUnmount(() => {
+  if (clipboardInterval.value) {
+    clearInterval(clipboardInterval.value);
+    clipboardInterval.value = 0;
+  }
+});
+
+function toggleClipboardMonitor() {
+  if (clipboardInterval.value) {
+    clearInterval(clipboardInterval.value);
+    clipboardInterval.value = 0;
+  } else {
+    clipboardInterval.value = setInterval(async () => {
+      const newText = (await readText()).trim();
+      if (
+        !/[\p{sc=Han}\p{scx=Hiragana}\p{scx=Katakana}\p{sc=Hangul}]/u.test(
+          newText.slice(0, 10),
+        )
+      ) {
+        return;
+      }
+
+      if (clipboardText.value === newText) return;
+
+      clipboardText.value = newText;
+      currentText.value = newText;
+    }, 1000);
+  }
 }
 </script>
 
 <style scoped>
-.logo {
-  &.vite:hover {
-    filter: drop-shadow(0 0 2em #747bff);
-  }
-
-  &.vue:hover {
-    filter: drop-shadow(0 0 2em #249b73);
-  }
-}
-
 .container {
-  margin: 0;
-  padding-top: 10vh;
+  padding: 1em;
   display: flex;
   flex-direction: column;
   justify-content: center;
   text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
 .row {
   display: flex;
+  flex-direction: row;
   justify-content: center;
+  align-items: center;
+  gap: 1em;
+}
+
+.row + .row {
+  margin-top: 1em;
+}
+
+.flex-grow-1 {
+  flex-grow: 1;
+}
+
+.textarea {
+  width: calc(100vw - 4em);
+  max-width: 1000px;
+  height: calc(80vh - 4em);
 }
 </style>

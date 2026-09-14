@@ -4,8 +4,9 @@ import ExplainerView from "./views/Explainer.vue";
 import SettingsView from "./views/Settings.vue";
 
 const routes = [
-  { path: "/", component: ExplainerView },
-  { path: "/settings", component: SettingsView },
+  { path: "/", redirect: "/explain" },
+  { path: "/explain", component: ExplainerView },
+  { path: "/settings", component: SettingsView, name: "Settings" },
 ];
 
 export const router = createRouter({

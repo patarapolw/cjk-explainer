@@ -18,7 +18,7 @@
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <RouterLink
-                      to="/"
+                      to="/explain"
                       v-bind="$props"
                       custom
                       v-slot="{ isActive, navigate }"
@@ -68,7 +68,15 @@
         >
           <SidebarIcon />
         </SidebarTrigger>
-        <span class="header-panel"> Dashboard </span>
+        <span class="header-panel">
+          {{
+            $route.name ||
+            $route.path
+              .split("")
+              .map((c, i) => (i ? (i > 1 ? c : c.toLocaleUpperCase()) : ""))
+              .join("")
+          }}
+        </span>
       </header>
       <RouterView />
     </SidebarMain>
