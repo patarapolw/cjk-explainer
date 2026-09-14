@@ -1,6 +1,7 @@
 <template>
   <main class="container">
     <div class="row">
+      <button type="reset" @click="currentText = ''">Clear</button>
       <div class="flex-grow"></div>
       <label class="row" @click.prevent="toggleClipboardMonitor()">
         <span>Clipboard</span>
@@ -20,14 +21,9 @@
     </div>
 
     <Dialog v-model:visible="isDialogExplainer" modal dismissable-mask>
-      <template #header>
-        <div style="text-overflow: ellipsis; height: 1.5em">
-          {{ currentText.slice(0, 50) }}
-        </div>
-      </template>
       <div class="modal-content">
         <component
-          :is="t === 'br' ? 'br' : ExpSegment"
+          :is="t === '<br/>' ? 'br' : ExpSegment"
           v-for="(t, i) in splitSentences(currentText)"
           :key="i"
           :text="t"
@@ -113,7 +109,7 @@ function splitSentences(text: string) {
     if (i % 2) {
       if (t === "\n") {
         out.push(seg);
-        out.push("br");
+        out.push("<br/>");
       } else {
         out.push(seg + t);
       }
@@ -155,6 +151,12 @@ function splitSentences(text: string) {
 
 .flex-grow {
   flex-grow: 1;
+}
+
+.modal-header {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 1.5em;
 }
 
 .modal-content {

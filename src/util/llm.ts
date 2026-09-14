@@ -2,7 +2,7 @@ import { ref } from "vue";
 
 import { fetch } from "@tauri-apps/plugin-http";
 
-export const apiKey = ref("");
+export const apiKey = ref(import.meta.env.VITE_DEEPSEK_API_KEY || "");
 export const LSKEY_apiKey = "DEEPSEEK_API_KEY";
 
 // Minimal type definitions

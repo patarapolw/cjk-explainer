@@ -25,8 +25,8 @@
 
         <div class="explain">
           <details v-if="thinking">
-            <summary>
-              {{ isThinking ? "thinking..." : "thought" }}
+            <summary class="reasoning-summary">
+              {{ isThinking ? thinking.split("\n").pop() || "..." : "thought" }}
             </summary>
             <div
               class="reasoning"
@@ -95,7 +95,7 @@ async function doExplain() {
         role: "system",
         content: `
           Explain in English how this sentence works in 500 characters.
-          Give me key vocabularies, with reading if it's Japanese or Chinese.
+          Give useful vocabularies in a table, with reading if it's Japanese or Chinese.
           `,
       },
       { role: "user", content: cleanedText },
@@ -121,8 +121,8 @@ async function doExplain() {
 <style scoped>
 .explain {
   width: 500px;
-  max-width: min(100vw, 600px);
-  min-height: 100px;
+  max-width: min(90vw, 600px);
+  min-height: 200px;
   max-height: 80vh;
   overflow: auto;
 }
@@ -138,6 +138,12 @@ async function doExplain() {
   &::-webkit-scrollbar {
     display: none; /* Older Safari and Chromium */
   }
+}
+
+.reasoning-summary {
+  height: 1.5em;
+  overflow: hidden;
+  cursor: pointer;
 }
 
 .emphasis {

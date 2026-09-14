@@ -14,7 +14,10 @@ import { onBeforeUnmount, onMounted } from "vue";
 import { apiKey, LSKEY_apiKey } from "../util/llm";
 
 onMounted(() => {
-  apiKey.value = localStorage.getItem(LSKEY_apiKey) || "";
+  const k = localStorage.getItem(LSKEY_apiKey);
+  if (typeof k === "string") {
+    apiKey.value = k;
+  }
 });
 
 onBeforeUnmount(() => {
