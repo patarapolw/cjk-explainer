@@ -28,7 +28,7 @@
                         @click="navigate"
                       >
                         <TextColorIcon />
-                        <span>Text</span>
+                        <span>Explain</span>
                       </SidebarMenuButton>
                     </RouterLink>
                   </SidebarMenuItem>
