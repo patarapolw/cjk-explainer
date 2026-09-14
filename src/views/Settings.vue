@@ -1,7 +1,41 @@
 <template>
-  <div>This is settings.</div>
+  <main class="container">
+    <label class="row">
+      <span>DeepSeek API key: </span>
+      <InputText class="flex-grow" v-model="apiKey" />
+    </label>
+  </main>
 </template>
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import InputText from "primevue/inputtext";
 
-<style scoped></style>
+import { onBeforeUnmount, onMounted } from "vue";
+import { apiKey, LSKEY_apiKey } from "../util/llm";
+
+onMounted(() => {
+  apiKey.value = localStorage.getItem(LSKEY_apiKey) || "";
+});
+
+onBeforeUnmount(() => {
+  localStorage.setItem(LSKEY_apiKey, apiKey.value);
+});
+</script>
+
+<style scoped>
+.container {
+  padding: 1em;
+}
+
+.row {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.flex-grow {
+  flex-grow: 1;
+}
+</style>
