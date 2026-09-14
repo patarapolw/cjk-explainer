@@ -1,5 +1,5 @@
 <template>
-  <span>
+  <span :lang="lang">
     <span>{{ tHead }}</span>
     <span :class="isOpActive ? 'emphasis' : ''">{{ cleanedText }}</span>
     <span
@@ -28,10 +28,14 @@
             <summary>
               {{ isThinking ? "thinking..." : "thought" }}
             </summary>
-            <div class="reasoning" v-html="markdownIt.render(thinking)"></div>
+            <div
+              class="reasoning"
+              :lang="lang"
+              v-html="markdownIt.render(thinking)"
+            ></div>
           </details>
 
-          <div v-html="markdownIt.render(explanation)"></div>
+          <div :lang="lang" v-html="markdownIt.render(explanation)"></div>
         </div>
       </Popover>
     </span>

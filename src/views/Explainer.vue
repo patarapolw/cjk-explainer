@@ -31,7 +31,7 @@
           v-for="(t, i) in splitSentences(currentText)"
           :key="i"
           :text="t"
-          lang="zh-CN"
+          :lang="lang"
         />
       </div>
     </Dialog>
@@ -48,12 +48,28 @@ import IconBolt from "@primeicons/vue/bolt";
 
 import { readText } from "@tauri-apps/plugin-clipboard-manager";
 
-import { onBeforeUnmount, ref } from "vue";
+import { onBeforeUnmount, ref, watch } from "vue";
 
 import ExpSegment from "../components/ExpSegment.vue";
 
 const currentText = ref("");
+const lang = ref("zh-CN");
 const isDialogExplainer = ref(false);
+
+watch(isDialogExplainer, () => {
+  if (isDialogExplainer.value) {
+    const excerpt = currentText.value.trim().slice(0, 100);
+
+    if (/[ぁ-ゟ]/u.test(excerpt)) {
+      // Japanese \p{scx} appears to catch Chinese punctuations...
+      lang.value = "ja-JP";
+    } else if (/[\p{sc=Hangul}]/u.test(excerpt)) {
+      lang.value = "ko-KR";
+    } else if (/[\p{sc=Han}]/u.test(excerpt)) {
+      lang.value = "zh-CN";
+    }
+  }
+});
 
 const clipboardInterval = ref(0);
 const clipboardText = ref("");
