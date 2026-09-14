@@ -1,22 +1,11 @@
 <template>
   <main class="container">
     <div class="row">
-      <InputText class="flex-grow" v-model="currentText" />
-    </div>
-    <div class="row">
       <div class="flex-grow"></div>
       <label class="row" @click.prevent="toggleClipboardMonitor()">
         <span>Clipboard</span>
         <ToggleSwitch :model-value="clipboardInterval !== 0" />
       </label>
-      <Button
-        type="button"
-        icon-only
-        @click="isDialogTextarea = true"
-        severity="info"
-      >
-        <IconExpand />
-      </Button>
       <Button
         type="button"
         :disabled="!currentText.trim()"
@@ -26,22 +15,9 @@
         <IconBolt />
       </Button>
     </div>
-
-    <Dialog v-model:visible="isDialogTextarea" modal dismissable-mask>
-      <template #header>
-        <div class="flex-grow"></div>
-        <Button
-          type="button"
-          :disabled="!currentText.trim()"
-          @click="isDialogExplainer = true"
-          icon-only
-          style="margin-inline-end: 1em"
-        >
-          <IconBolt />
-        </Button>
-      </template>
-      <Textarea class="modal-content" v-model="currentText"></Textarea>
-    </Dialog>
+    <div class="row">
+      <Textarea class="flex-grow textarea" v-model="currentText"></Textarea>
+    </div>
 
     <Dialog v-model:visible="isDialogExplainer" modal dismissable-mask>
       <template #header>
@@ -55,7 +31,7 @@
           v-for="(t, i) in splitSentences(currentText)"
           :key="i"
           :text="t"
-          lang="ko"
+          lang="zh-CN"
         />
       </div>
     </Dialog>
@@ -63,13 +39,11 @@
 </template>
 
 <script setup lang="ts">
-import InputText from "primevue/inputtext";
 import ToggleSwitch from "primevue/toggleswitch";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
 import Textarea from "primevue/textarea";
 
-import IconExpand from "@primeicons/vue/expand";
 import IconBolt from "@primeicons/vue/bolt";
 
 import { readText } from "@tauri-apps/plugin-clipboard-manager";
@@ -79,7 +53,6 @@ import { onBeforeUnmount, ref } from "vue";
 import ExpSegment from "../components/ExpSegment.vue";
 
 const currentText = ref("");
-const isDialogTextarea = ref(false);
 const isDialogExplainer = ref(false);
 
 const clipboardInterval = ref(0);
@@ -172,5 +145,9 @@ function splitSentences(text: string) {
   width: calc(100vw - 4em);
   max-width: 1000px;
   height: calc(80vh - 4em);
+}
+
+.textarea {
+  height: calc(90vh - 6rem);
 }
 </style>

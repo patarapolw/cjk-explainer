@@ -1,15 +1,24 @@
 <template>
   <span>
-    {{ text }}
+    <span>{{ tHead }}</span>
+    <span :class="isOpActive ? 'emphasis' : ''">{{ cleanedText }}</span>
     <span
       v-if="
-        /[\p{sc=Han}\p{scx=Hiragana}\p{scx=Katakana}\p{sc=Hangul}]/u.test(text)
+        /[\p{sc=Han}\p{scx=Hiragana}\p{scx=Katakana}\p{sc=Hangul}]/u.test(
+          cleanedText,
+        )
       "
     >
-      <button type="button" @click="(ev) => (op ? op.toggle(ev) : null)">
+      <Button
+        type="button"
+        @click="(ev) => (op ? op.toggle(ev) : null)"
+        severity="secondary"
+        :variant="isOpActive ? '' : 'outlined'"
+      >
         ...
-      </button>
-      <Popover ref="op">
+      </Button>
+
+      <Popover ref="op" @show="isOpActive = true" @hide="isOpActive = false">
         <button type="button" @click="doExplain()" :disabled="isThinking">
           {{ explanation ? "New explanation" : "Explain" }}
         </button>
@@ -33,6 +42,7 @@
 import { onMounted, ref, useTemplateRef } from "vue";
 
 import Popover from "primevue/popover";
+import Button from "primevue/button";
 
 import { dbExplainer } from "../db/explainer";
 import { LLMstream } from "../util/llm";
@@ -48,7 +58,11 @@ export interface IExplainer {
   explanation: string;
 }
 
+const cleanedText = text.trim();
+const tHead = text.substring(0, text.indexOf(cleanedText));
+
 const op = useTemplateRef("op");
+const isOpActive = ref(false);
 const explanation = ref("");
 
 const thinking = ref("");
@@ -57,7 +71,7 @@ const isThinking = ref(false);
 onMounted(async () => {
   const [r] = await dbExplainer.select<IExplainer[]>(
     /* sql */ `SELECT [text], [explanation] FROM explainer WHERE lang = $1 AND [text] = $2 LIMIT 1`,
-    [lang, text],
+    [lang, cleanedText],
   );
 
   if (r) {
@@ -77,10 +91,10 @@ async function doExplain() {
         role: "system",
         content: `
           Explain in English how this sentence works in 500 characters.
-          Give me key vocabularies.
+          Give me key vocabularies, with reading if it's Japanese or Chinese.
           `,
       },
-      { role: "user", content: text },
+      { role: "user", content: cleanedText },
     ],
   })) {
     if (t.done) break;
@@ -92,8 +106,8 @@ async function doExplain() {
   }
 
   await dbExplainer.execute(
-    /* sql */ `INSERT INTO explainer ([text], [explanation], [lang]) VALUES ($1, $2, $3)`,
-    [text, explanation.value, lang],
+    /* sql */ `INSERT OR REPLACE INTO explainer ([text], [explanation], [lang]) VALUES ($1, $2, $3)`,
+    [cleanedText, explanation.value, lang],
   );
 
   isThinking.value = false;
@@ -120,5 +134,10 @@ async function doExplain() {
   &::-webkit-scrollbar {
     display: none; /* Older Safari and Chromium */
   }
+}
+
+.emphasis {
+  border: 1px solid rgba(255, 0, 0, 0.5);
+  border-radius: 5px;
 }
 </style>
