@@ -105,7 +105,7 @@ function splitSentences(text: string) {
 
   let seg = "";
 
-  text.split(/(。|. |\n)/g).forEach((t, i) => {
+  text.split(/(。|\. |\n)/g).forEach((t, i) => {
     if (i % 2) {
       if (t === "\n") {
         out.push(seg);

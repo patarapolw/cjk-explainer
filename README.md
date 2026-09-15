@@ -51,19 +51,6 @@ pnpm android:install:debug   # install the debug APK to a connected device
 3. Tap the `...` next to any sentence containing Chinese, Japanese, or Korean characters to request an explanation.
 4. The app streams a response from DeepSeek explaining how the sentence works, along with a vocabulary table (with readings for Chinese/Japanese), and caches it locally for next time.
 
-## Tech stack
-
-| Layer              | Tooling                                  |
-| ------------------ | ---------------------------------------- |
-| UI                 | Vue 3, PrimeVue, PrimeIcons              |
-| Build              | Vite, vue-tsc, TypeScript                |
-| Shell              | Tauri 2 (Rust)                           |
-| Storage            | SQLite via `tauri-plugin-sql`            |
-| Clipboard          | `tauri-plugin-clipboard-manager`         |
-| Networking         | `tauri-plugin-http`                      |
-| LLM                | DeepSeek chat-completions API (streamed) |
-| Markdown rendering | `markdown-it`                            |
-
 ## Recommended IDE setup
 
 - [VS Code](https://code.visualstudio.com/) + [Vue - Official](https://marketplace.visualstudio.com/items?itemName=Vue.volar) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
