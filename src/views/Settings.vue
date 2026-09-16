@@ -61,6 +61,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .container {
   padding: 1em;
+  overflow: auto;
+  height: 100%;
 }
 
 .row {
