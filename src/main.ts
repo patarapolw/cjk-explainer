@@ -4,7 +4,9 @@ import { createApp } from "vue";
 import Aura from "@primeuix/themes/aura";
 
 import App from "./App.vue";
+import { runSync } from "./db/explainer.ts";
 import { router } from "./router.ts";
+import { signIn } from "./util/supabase.ts";
 
 const app = createApp(App);
 
@@ -17,3 +19,7 @@ app
   })
   .use(router)
   .mount("#app");
+
+if (await signIn()) {
+  await runSync();
+}

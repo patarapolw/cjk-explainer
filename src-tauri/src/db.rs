@@ -44,5 +44,15 @@ pub fn explainer_migrations() -> Vec<Migration> {
             ",
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "restore_unique_index",
+            sql: "
+                -- I forgot to put back PRIMARY TEXT (text), i.e. text is unique
+                -- but I want to change definition now
+                CREATE UNIQUE INDEX idx_explainer_u ON explainer (`text`, lang);
+            ",
+            kind: MigrationKind::Up
+        }
     ]
 }

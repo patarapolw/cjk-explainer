@@ -48,20 +48,15 @@ import { onMounted, ref, useTemplateRef } from "vue";
 import Popover from "primevue/popover";
 import Button from "primevue/button";
 
-import { dbExplainer } from "../db/explainer";
 import { LLMstream } from "../util/llm";
 import { markdownIt } from "../util/markdown";
 import { settingsState } from "../util/settings";
+import { getExplanation, saveExplanation } from "../db/explainer";
 
 const { text, lang } = defineProps<{
   text: string;
   lang: string;
 }>();
-
-export interface IExplainer {
-  text: string;
-  explanation: string;
-}
 
 const cleanedText = text.trim();
 const tHead = text.substring(0, text.indexOf(cleanedText));
@@ -74,13 +69,9 @@ const thinking = ref("");
 const isThinking = ref(false);
 
 onMounted(async () => {
-  const [r] = await dbExplainer.select<IExplainer[]>(
-    /* sql */ `SELECT [text], [explanation] FROM explainer WHERE lang = $1 AND [text] = $2 LIMIT 1`,
-    [lang, cleanedText],
-  );
-
-  if (r) {
-    explanation.value = r.explanation;
+  const newExplanation = await getExplanation({ text: cleanedText, lang });
+  if (newExplanation) {
+    explanation.value = newExplanation;
   }
 });
 
@@ -107,10 +98,11 @@ async function doExplain() {
     explanation.value += t.content;
   }
 
-  await dbExplainer.execute(
-    /* sql */ `INSERT OR REPLACE INTO explainer ([text], [explanation], [lang]) VALUES ($1, $2, $3)`,
-    [cleanedText, explanation.value, lang],
-  );
+  await saveExplanation({
+    text: cleanedText,
+    lang,
+    explanation: explanation.value,
+  });
 
   isThinking.value = false;
 }

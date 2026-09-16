@@ -18,6 +18,10 @@ Give useful vocabularies in a table, with reading if it's Japanese or Chinese.
 export const settingsState = reactive<ISettingsState>({
   deepseekApiKey: import.meta.env.VITE_DEEPSEK_API_KEY,
   explainerPrompt,
+  supabaseURL: import.meta.env.VITE_SUPABASE_URL,
+  supabasePublishableKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  supabaseUsername: import.meta.env.VITE_SUPABASE_USER,
+  supabasePassword: import.meta.env.VITE_SUPABASE_USER_PASSWORD,
 });
 // let's make it localStorage-based for now
 const LSKEY_settingsState = "SETTINGS_STATE";
