@@ -12,6 +12,7 @@ interface IDBSync {
   id: ReturnType<typeof crypto.randomUUID>;
   updated_at: number;
   deleted_at: number | null; // TODO: soft delete logic
+  // but delete might not be need for this table specifically
   sync_status: "pending" | "synced" | "error";
 }
 
@@ -59,7 +60,6 @@ export async function saveExplanation({
     ON CONFLICT ("text", lang)
     DO UPDATE SET
       ${cols.map((c) => `"${c}" = excluded.${c}`)}
-    WHERE "text" = excluded.text AND lang = excluded.lang
     `,
     [
       ...[text, explanation, lang], // cols
@@ -100,11 +100,23 @@ async function pushExplanation(rows: { rowid: number }[]) {
 
   const { error } = await supabase
     .from("explainer")
-    .upsert(toBeUpserted as any, { onConflict: `user_id,text` }); // TODO: proper typing from Supabase CLI
+    .upsert(toBeUpserted as any, { onConflict: `user_id,text,lang` }); // TODO: proper typing from Supabase CLI
 
   if (error) throw error;
+
   await db.execute(
-    `UPDATE explainer SET sync_status = 'synced' WHERE rowid IN (${rows.map((r) => r.rowid)})`,
+    toBeUpserted
+      .map(
+        (r, i) => `
+          UPDATE explainer SET
+            sync_status = 'synced',
+            id = '${r.id}',
+            updated_at = ${+r.updated_at},
+            deleted_at = ${r.deleted_at ? +r.deleted_at : null}
+          WHERE rowid = ${rows[i].rowid}
+        `,
+      )
+      .join(";\n"),
   );
 }
 
@@ -137,7 +149,7 @@ async function pullChanges() {
   // supabase API doesn't compare TIMESTAMPTZ as Date object, only as ISO format string.
   if (error) throw error;
 
-  const cols = [...localCols, "id", "updated_at", "sync_status"];
+  const cols = [...localCols, "id", "updated_at", "deleted_at", "sync_status"];
 
   for (const r of data as (IExplainer & IDBSync)[]) {
     await db.execute(
@@ -151,7 +163,12 @@ async function pullChanges() {
       `,
       [
         ...[r.text, r.explanation, r.lang], // cols
-        ...[r.id, +new Date(r.updated_at), "synced"], // syncCols
+        ...[
+          r.id,
+          +new Date(r.updated_at),
+          r.deleted_at ? +new Date(r.deleted_at) : null,
+          "synced",
+        ], // syncCols
       ],
     );
   }
