@@ -51,6 +51,7 @@ import Button from "primevue/button";
 import { dbExplainer } from "../db/explainer";
 import { LLMstream } from "../util/llm";
 import { markdownIt } from "../util/markdown";
+import { settingsState } from "../util/settings";
 
 const { text, lang } = defineProps<{
   text: string;
@@ -93,10 +94,7 @@ async function doExplain() {
     messages: [
       {
         role: "system",
-        content: `
-          Explain in English how this sentence works in 500 characters.
-          Give useful vocabularies in a table, with reading if it's Japanese or Chinese.
-          `,
+        content: settingsState.explainerPrompt,
       },
       { role: "user", content: cleanedText },
     ],

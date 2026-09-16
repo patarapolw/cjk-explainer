@@ -1,9 +1,6 @@
-import { ref } from "vue";
-
 import { fetch } from "@tauri-apps/plugin-http";
 
-export const apiKey = ref(import.meta.env.VITE_DEEPSEK_API_KEY || "");
-export const LSKEY_apiKey = "DEEPSEEK_API_KEY";
+import { settingsState } from "./settings";
 
 // Minimal type definitions
 type DeepSeekChunk = {
@@ -31,15 +28,12 @@ export async function* LLMstream(body: {
     content: string;
   }[];
 }) {
-  const current_apiKey = localStorage.getItem(LSKEY_apiKey);
-  if (!current_apiKey) return;
-
   let endpoint = "https://api.deepseek.com/chat/completions";
 
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${current_apiKey}`,
+      Authorization: `Bearer ${settingsState.deepseekApiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({

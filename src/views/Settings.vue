@@ -1,27 +1,60 @@
 <template>
   <main class="container">
-    <label class="row">
-      <span>DeepSeek API key: </span>
-      <InputText class="flex-grow" v-model="apiKey" />
-    </label>
+    <fieldset class="fieldset">
+      <legend>LLM</legend>
+      <label class="row">
+        <span class="label-header">DeepSeek API key: </span>
+        <InputText class="flex-grow" v-model="settingsState.deepseekApiKey" />
+      </label>
+
+      <fieldset class="row" disabled>
+        <legend>Explainer prompt</legend>
+        <Textarea v-model="settingsState.explainerPrompt" fluid />
+      </fieldset>
+    </fieldset>
+
+    <fieldset class="fieldset">
+      <legend>Supabase</legend>
+      <label class="row">
+        <span class="label-header">Server URL: </span>
+        <InputText class="flex-grow" v-model="settingsState.supabaseURL" />
+      </label>
+      <label class="row">
+        <span class="label-header">Publishable key: </span>
+        <InputText
+          class="flex-grow"
+          v-model="settingsState.supabasePublishableKey"
+        />
+      </label>
+      <label class="row">
+        <span class="label-header">Username: </span>
+        <InputText class="flex-grow" v-model="settingsState.supabaseUsername" />
+      </label>
+      <label class="row">
+        <span class="label-header">Password: </span>
+        <InputPassword
+          class="flex-grow"
+          v-model="settingsState.supabasePassword"
+        />
+      </label>
+    </fieldset>
   </main>
 </template>
 
 <script setup lang="ts">
 import InputText from "primevue/inputtext";
+import InputPassword from "primevue/inputpassword";
+import Textarea from "primevue/textarea";
 
 import { onBeforeUnmount, onMounted } from "vue";
-import { apiKey, LSKEY_apiKey } from "../util/llm";
+import { loadSettings, saveSettings, settingsState } from "../util/settings";
 
 onMounted(() => {
-  const k = localStorage.getItem(LSKEY_apiKey);
-  if (typeof k === "string") {
-    apiKey.value = k;
-  }
+  loadSettings();
 });
 
 onBeforeUnmount(() => {
-  localStorage.setItem(LSKEY_apiKey, apiKey.value);
+  saveSettings();
 });
 </script>
 
@@ -36,6 +69,18 @@ onBeforeUnmount(() => {
   justify-content: center;
   align-items: center;
   gap: 0.5em;
+}
+
+.row + .row {
+  margin-top: 1em;
+}
+
+.fieldset + .fieldset {
+  margin-top: 1em;
+}
+
+.label-header {
+  width: 10em;
 }
 
 .flex-grow {
