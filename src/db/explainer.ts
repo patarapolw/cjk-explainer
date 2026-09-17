@@ -85,7 +85,6 @@ async function pushExplanation(rows: { rowid: number }[]) {
   const toBeUpserted = fullRows.map(({ sync_status, ...row }) => {
     return {
       ...row,
-      id: row.id || crypto.randomUUID(),
       updated_at: row.updated_at ? new Date(row.updated_at) : new Date(),
       deleted_at: row.deleted_at ? new Date(row.deleted_at) : null,
       user_id,
@@ -118,6 +117,23 @@ export const syncExplainer = {
   async push() {
     if (!supabase) return;
 
+    const noUUID = await dbExplainer.select<{ rowid: number }[]>(
+      `SELECT rowid FROM explainer WHERE id IS NULL`,
+    );
+    if (noUUID.length) {
+      await dbExplainer.execute(
+        noUUID
+          .map(
+            (r) => `
+              UPDATE explainer SET
+                id = '${crypto.randomUUID()}'
+              WHERE rowid = ${r.rowid}
+            `,
+          )
+          .join(";\n"),
+      );
+    }
+
     const pending = await dbExplainer.select<{ rowid: number }[]>(
       `SELECT rowid FROM explainer WHERE sync_status = $1`,
       ["pending"],
@@ -147,7 +163,7 @@ export const syncExplainer = {
         `
         INSERT INTO explainer (${cols.map((c) => `"${c}"`)})
         VALUES (${cols.map((_, i) => `$${i + 1}`)})
-        ON CONFLICT ("text", lang)
+        ON CONFLICT (id)
         DO UPDATE SET
           ${cols.map((c) => `"${c}" = excluded.${c}`)}
         WHERE excluded.updated_at > explainer.updated_at
