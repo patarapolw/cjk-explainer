@@ -9,7 +9,7 @@
 
       <fieldset class="row" disabled>
         <legend>Explainer prompt</legend>
-        <Textarea v-model="settingsState.explainerPrompt" fluid />
+        <Textarea v-model="settingsState.explainerPrompt" fluid auto-resize />
       </fieldset>
     </fieldset>
 

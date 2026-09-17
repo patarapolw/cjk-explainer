@@ -2,27 +2,21 @@ import Database from "@tauri-apps/plugin-sql";
 
 import { supabase } from "../util/supabase";
 
+import type { IDBSync } from "./sync";
+
 interface IExplainer {
   text: string;
   explanation: string;
   lang: string;
 }
 
-interface IDBSync {
-  id: ReturnType<typeof crypto.randomUUID>;
-  updated_at: number;
-  deleted_at: number | null; // TODO: soft delete logic
-  // but delete might not be need for this table specifically
-  sync_status: "pending" | "synced" | "error";
-}
-
-const localCols = [
+const explainerCols = [
   "text",
   "explanation",
   "lang",
 ] as const satisfies readonly (keyof IExplainer)[];
 
-const db = await Database.load("sqlite:explainer.db");
+const dbExplainer = await Database.load("sqlite:explainer.db");
 
 export async function getExplanation({
   text,
@@ -31,7 +25,7 @@ export async function getExplanation({
   text: string;
   lang: string;
 }) {
-  const [r] = await db.select<IExplainer[]>(
+  const [r] = await dbExplainer.select<IExplainer[]>(
     `SELECT "explanation" FROM explainer WHERE lang = $1 AND "text" = $2 LIMIT 1`,
     [lang, text],
   );
@@ -51,9 +45,9 @@ export async function saveExplanation({
   const id = crypto.randomUUID();
   const updated_at = Date.now();
 
-  const cols = [...localCols, "id", "updated_at", "sync_status"];
+  const cols = [...explainerCols, "id", "updated_at", "sync_status"];
 
-  await db.execute(
+  await dbExplainer.execute(
     `
     INSERT INTO explainer (${cols.map((c) => `"${c}"`)})
     VALUES (${cols.map((_, i) => `$${i + 1}`)})
@@ -67,7 +61,7 @@ export async function saveExplanation({
     ],
   );
 
-  const rows = await db.select<{ rowid: number }[]>(
+  const rows = await dbExplainer.select<{ rowid: number }[]>(
     `SELECT rowid FROM explainer WHERE text = $1 AND lang = $2`,
     [text, lang],
   );
@@ -81,7 +75,7 @@ export async function saveExplanation({
 async function pushExplanation(rows: { rowid: number }[]) {
   if (!supabase) return;
 
-  const fullRows = await db.select<(IExplainer & IDBSync)[]>(
+  const fullRows = await dbExplainer.select<(IExplainer & IDBSync)[]>(
     `SELECT * FROM explainer WHERE rowid IN (${rows.map((r) => r.rowid)})`,
   );
   if (!fullRows.length) return;
@@ -104,7 +98,7 @@ async function pushExplanation(rows: { rowid: number }[]) {
 
   if (error) throw error;
 
-  await db.execute(
+  await dbExplainer.execute(
     toBeUpserted
       .map(
         (r, i) => `
@@ -120,68 +114,54 @@ async function pushExplanation(rows: { rowid: number }[]) {
   );
 }
 
-// --- startup / periodic sync ---
+export const syncExplainer = {
+  async push() {
+    if (!supabase) return;
 
-let syncing = false;
-
-export async function runSync() {
-  if (syncing || !navigator.onLine) return;
-  syncing = true;
-  try {
-    await pullChanges();
-    await pushPending();
-  } catch (err) {
-    console.error("sync failed", err);
-  } finally {
-    syncing = false;
-  }
-}
-
-async function pullChanges() {
-  if (!supabase) return;
-
-  const lastSyncedAt = Number(localStorage.getItem("last_synced_at") ?? 0);
-
-  const { data, error } = await supabase
-    .from("explainer")
-    .select("*")
-    .gt("updated_at", new Date(lastSyncedAt).toISOString());
-  // supabase API doesn't compare TIMESTAMPTZ as Date object, only as ISO format string.
-  if (error) throw error;
-
-  const cols = [...localCols, "id", "updated_at", "deleted_at", "sync_status"];
-
-  for (const r of data as (IExplainer & IDBSync)[]) {
-    await db.execute(
-      `
-      INSERT INTO explainer (${cols.map((c) => `"${c}"`)})
-      VALUES (${cols.map((_, i) => `$${i + 1}`)})
-      ON CONFLICT ("text", lang)
-      DO UPDATE SET
-        ${cols.map((c) => `"${c}" = excluded.${c}`)}
-      WHERE excluded.updated_at > explainer.updated_at
-      `,
-      [
-        ...[r.text, r.explanation, r.lang], // cols
-        ...[
-          r.id,
-          +new Date(r.updated_at),
-          r.deleted_at ? +new Date(r.deleted_at) : null,
-          "synced",
-        ], // syncCols
-      ],
+    const pending = await dbExplainer.select<{ rowid: number }[]>(
+      `SELECT rowid FROM explainer WHERE sync_status = $1`,
+      ["pending"],
     );
-  }
+    await pushExplanation(pending);
+  },
+  async pull(lastSyncedAt: Date) {
+    if (!supabase) return;
 
-  localStorage.setItem("last_synced_at", String(Date.now()));
-}
+    const { data, error } = await supabase
+      .from("explainer")
+      .select("*")
+      .gt("updated_at", lastSyncedAt.toISOString());
+    // supabase API doesn't compare TIMESTAMPTZ as Date object, only as ISO format string.
+    if (error) throw error;
 
-async function pushPending() {
-  if (!supabase) return;
+    const cols = [
+      ...explainerCols,
+      "id",
+      "updated_at",
+      "deleted_at",
+      "sync_status",
+    ];
 
-  const pending = await db.select<{ rowid: number }[]>(
-    `SELECT rowid FROM explainer WHERE sync_status = $1`,
-    ["pending"],
-  );
-  await pushExplanation(pending);
-}
+    for (const r of data as (IExplainer & IDBSync)[]) {
+      await dbExplainer.execute(
+        `
+        INSERT INTO explainer (${cols.map((c) => `"${c}"`)})
+        VALUES (${cols.map((_, i) => `$${i + 1}`)})
+        ON CONFLICT ("text", lang)
+        DO UPDATE SET
+          ${cols.map((c) => `"${c}" = excluded.${c}`)}
+        WHERE excluded.updated_at > explainer.updated_at
+        `,
+        [
+          ...[r.text, r.explanation, r.lang], // cols
+          ...[
+            r.id,
+            +new Date(r.updated_at),
+            r.deleted_at ? +new Date(r.deleted_at) : null,
+            "synced",
+          ], // syncCols
+        ],
+      );
+    }
+  },
+};

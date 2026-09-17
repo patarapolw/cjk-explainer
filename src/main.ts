@@ -4,7 +4,7 @@ import { createApp } from "vue";
 import Aura from "@primeuix/themes/aura";
 
 import App from "./App.vue";
-import { runSync } from "./db/explainer.ts";
+import { runSync } from "./db/sync.ts";
 import { router } from "./router.ts";
 import { signIn } from "./util/supabase.ts";
 
