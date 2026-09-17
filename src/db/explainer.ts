@@ -100,13 +100,12 @@ async function pushExplanation(rows: { rowid: number }[]) {
   await dbExplainer.execute(
     toBeUpserted
       .map(
-        (r, i) => `
+        (r) => `
           UPDATE explainer SET
             sync_status = 'synced',
-            id = '${r.id}',
             updated_at = ${+r.updated_at},
-            deleted_at = ${r.deleted_at ? +r.deleted_at : null}
-          WHERE rowid = ${rows[i].rowid}
+            deleted_at = ${r.deleted_at ? +r.deleted_at : "NULL"}
+          WHERE id = '${r.id}' -- rowid is doable too, but id is exactly the sync uuid
         `,
       )
       .join(";\n"),
