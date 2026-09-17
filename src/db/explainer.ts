@@ -157,6 +157,9 @@ export const syncExplainer = {
       "sync_status",
     ];
 
+    // TODO: wrap in a transaction
+    // Will be slow if many rows.
+    // `tauri-plugin-sql` doesn't have transactions, and writing SQL strings directly is not safe for user texts.
     for (const r of data as (IExplainer & IDBSync)[]) {
       await dbExplainer.execute(
         `
