@@ -25,7 +25,7 @@
 
         <div class="explain">
           <details v-if="thinking">
-            <summary class="reasoning-summary">
+            <summary class="reasoning-summary" :lang="lang">
               {{ isThinking ? thinking.split("\n").pop() || "..." : "thought" }}
             </summary>
             <div
