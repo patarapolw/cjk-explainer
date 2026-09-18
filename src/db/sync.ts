@@ -30,6 +30,7 @@ async function pullChanges() {
   const lastSyncedAt = new Date(
     Number(localStorage.getItem("last_synced_at") ?? 0),
   );
+  // lastSyncedAt.setDate(lastSyncedAt.getDate() - 3); // repair sync over the last n days
 
   await syncExplainer.pull(lastSyncedAt);
 

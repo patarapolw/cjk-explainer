@@ -74,6 +74,8 @@ export async function saveExplanation({
   return id;
 }
 
+// *** SYNC logic per table
+
 async function pushExplanation(rows: { rowid: number }[]) {
   if (!supabase) return;
 
@@ -153,6 +155,8 @@ export const syncExplainer = {
     // need testing
     await dbExplainer.execute(`
       CREATE TEMP TABLE sync_explainer (${cols.map((c) => `"${c}"`)});
+      -- deleted_at index is probably not worth it
+      -- full table scan for NULL once or twice is cheaper
     `);
 
     try {
@@ -180,6 +184,7 @@ export const syncExplainer = {
       const chunk_size = Math.floor(32_000 / cols.length);
       let chunk: typeof dataInArray;
       while ((chunk = dataInArray.splice(0, chunk_size)).length) {
+        // `tauri-plugin-sql` doesn't have transactions, and writing SQL strings directly is not safe for user texts.
         await dbExplainer.execute(
           `
             INSERT INTO sync_explainer
@@ -189,18 +194,30 @@ export const syncExplainer = {
         );
       }
 
-      // `tauri-plugin-sql` doesn't have transactions, and writing SQL strings directly is not safe for user texts.
-      // temp table workaround
-      await dbExplainer.execute(`
+      // temp table workaround for a transaction
+      var { rowsAffected } = await dbExplainer.execute(`
         INSERT INTO explainer (${cols.map((c) => `"${c}"`)})
         SELECT ${cols.map((c) => `"${c}"`)} FROM sync_explainer
-        WHERE TRUE
+        WHERE deleted_at IS NULL
         -- WHERE clause is required to prevent ON be interpreted as JOIN part of SELECT statement
         ON CONFLICT (id)
         DO UPDATE SET
           ${cols.filter((c) => c !== "id").map((c) => `"${c}" = excluded.${c}`)}
         WHERE excluded.updated_at > explainer.updated_at
       `);
+      console.log(`sync_explainer: pull inserted/updated ${rowsAffected} rows`);
+
+      var { rowsAffected } = await dbExplainer.execute(`
+        DELETE FROM explainer
+        WHERE id IN (
+          SELECT s.id FROM sync_explainer s
+          WHERE s.deleted_at IS NOT NULL
+            AND s.updated_at > COALESCE(
+              (SELECT e.updated_at FROM explainer e WHERE e.id = s.id), -1
+            )
+        );
+      `);
+      console.log(`sync_explainer: pull deleted ${rowsAffected} rows`);
     } finally {
       // Guarantee running drop table, including premature return
       await dbExplainer

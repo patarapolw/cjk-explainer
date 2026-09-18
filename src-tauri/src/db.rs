@@ -53,6 +53,19 @@ pub fn explainer_migrations() -> Vec<Migration> {
                 CREATE UNIQUE INDEX idx_explainer_u ON explainer (`text`, lang);
             ",
             kind: MigrationKind::Up
+        },
+        Migration {
+            version: 4,
+            description: "create_query_indexes",
+            sql: "
+                -- no plan on querying lang alone currently.
+                DROP INDEX IF EXISTS idx_explainer_lang;
+
+                -- index for updated_at/deleted_at are not needed - per row comparison.
+                -- SELECT rowid FROM explainer WHERE sync_status = 'pending'
+                CREATE INDEX idx_explainer_sync_status_pending ON explainer (sync_status) WHERE sync_status = 'pending';
+            ",
+            kind: MigrationKind::Up
         }
     ]
 }
