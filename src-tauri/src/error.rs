@@ -4,7 +4,6 @@ use std::{error::Error, fmt};
 pub enum AppError {
     Tauri(tauri::Error),
     Sqlx(sqlx::Error),
-    InvalidPath,
 }
 
 impl fmt::Display for AppError {
@@ -12,7 +11,6 @@ impl fmt::Display for AppError {
         match self {
             Self::Tauri(e) => write!(f, "tauri error: {e}"),
             Self::Sqlx(e) => write!(f, "sqlx error: {e}"),
-            Self::InvalidPath => write!(f, "invalid path"),
         }
     }
 }
