@@ -2,6 +2,7 @@ import PrimeVue from "primevue/config";
 import { createApp } from "vue";
 
 import Aura from "@primeuix/themes/aura";
+import { invoke } from "@tauri-apps/api/core";
 
 import App from "./App.vue";
 import { runSync } from "./db/sync.ts";
@@ -22,4 +23,5 @@ app
 
 if (await signIn()) {
   await runSync();
+  await invoke("greet", { name: "lala" }).then(console.log);
 }

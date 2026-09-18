@@ -1,9 +1,11 @@
+mod command;
 mod db;
+mod error;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+async fn greet(name: &str) -> Result<String, String> {
+    Ok(format!("Hello, {}! You've been greeted from Rust!", name))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -17,7 +19,7 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![greet, command::create_sqlite])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
