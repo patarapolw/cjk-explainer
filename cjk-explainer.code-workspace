@@ -7,8 +7,8 @@
 			"path": "C:/Users/HP/AppData/Roaming/cc.polv.cjk-explainer"
 		},
 		{
-			"path": "src-tauri"
-		}
+			"path": "yomitan-parser"
+		},
 	],
 	"settings": {
 		"editor.tabSize": 2,

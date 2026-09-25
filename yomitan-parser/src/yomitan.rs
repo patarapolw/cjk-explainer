@@ -8,7 +8,7 @@ use sqlx::{
 use tokio::fs::{create_dir_all, read_dir};
 use zip::ZipArchive;
 
-use crate::error::AppError;
+use crate::error::YomitanError;
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
@@ -60,7 +60,7 @@ struct TermBankV3Entry(
     // - Single definition for the term. (String)
     // - Single detailed definition for the term. (Object, required [type] in ["text", "image", "structured-content"])
     // - Deinflection of the term to an uninflected term. (2-tuple, [string, string[]])
-    i32, // Sequence number for the term. Terms with the same sequence number can be shown together when the \"resultOutputMode\" option is set to \"merge\".
+    i64, // Sequence number for the term. Terms with the same sequence number can be shown together when the \"resultOutputMode\" option is set to \"merge\".
     String, // String of space-separated tags for the term. An empty string is treated as no tags.
 );
 
@@ -80,7 +80,7 @@ pub struct YomitanParser {
 }
 
 impl YomitanParser {
-    pub async fn from_zip(zip_file: PathBuf, out_dir: PathBuf) -> Result<Self, AppError> {
+    pub async fn from_zip(zip_file: PathBuf, out_dir: PathBuf) -> Result<Self, YomitanError> {
         let root_dir = out_dir.clone();
         create_dir_all(root_dir.clone()).await?;
 
@@ -89,7 +89,7 @@ impl YomitanParser {
         Ok(Self { root_dir })
     }
 
-    async fn create_db(self) -> Result<(), AppError> {
+    pub async fn create_db(self) -> Result<(), YomitanError> {
         let options = SqliteConnectOptions::new()
             .filename(self.root_dir.join("index.db"))
             .create_if_missing(true)
@@ -121,7 +121,7 @@ impl YomitanParser {
             }
 
             if let Some(filestem) = path.file_stem().and_then(|s| s.to_str()) {
-                if let Some((id_str, bank_name)) = filestem.rsplit_once("_")
+                if let Some((bank_name, id_str)) = filestem.rsplit_once("_")
                     && let Ok(idx) = id_str.parse::<u32>()
                 {
                     println!("{} ({})", bank_name, idx);

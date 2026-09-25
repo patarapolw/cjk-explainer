@@ -1,7 +1,6 @@
 mod command;
 mod db;
 mod error;
-mod yomitan;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -20,7 +19,7 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, command::create_sqlite])
+        .invoke_handler(tauri::generate_handler![greet, command::import_yomitan_zip])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

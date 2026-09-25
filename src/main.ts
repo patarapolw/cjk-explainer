@@ -24,5 +24,4 @@ app
 if (await signIn()) {
   await runSync();
   await invoke("greet", { name: "lala" }).then(console.log);
-  await invoke("create_sqlite", { path: "lala.db" }).then(console.log);
 }

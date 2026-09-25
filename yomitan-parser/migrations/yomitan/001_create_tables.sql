@@ -19,7 +19,7 @@ CREATE TABLE kanji_meta (
     "data"          INTEGER NOT NULL    -- probably TEXT, but make use of SQLite affinity for type=freq
 );
 
-CREATE TABLE tags (
+CREATE TABLE tag (
     "name"          TEXT NOT NULL,
     category        TEXT,
     sort_order      INTEGER NOT NULL DEFAULT 0,
@@ -28,7 +28,7 @@ CREATE TABLE tags (
     PRIMARY KEY ("name")
 );
 
-CREATE TABLE terms (
+CREATE TABLE term (
     term            TEXT NOT NULL,
     reading         TEXT NOT NULL,
     def_tags        TEXT,
