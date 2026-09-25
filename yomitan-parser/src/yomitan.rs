@@ -1,11 +1,12 @@
-use std::{path::PathBuf, time::Duration};
+use std::{collections::HashMap, path::PathBuf, time::Duration};
 
-use serde::Deserialize;
+use futures::future::join_all;
+use serde::{Deserialize, Serialize};
 use sqlx::{
     SqlitePool,
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqliteSynchronous},
 };
-use tokio::fs::{create_dir_all, read_dir};
+use tokio::fs::{create_dir_all, read_dir, remove_file};
 use zip::ZipArchive;
 
 use crate::error::YomitanError;
@@ -75,6 +76,13 @@ struct TermMetaBankEntry(
             // - "ipa" => { reading: string, transcriptions: { ipa: string, tag?: string[] }[]}
 );
 
+#[derive(Debug, Clone, Serialize)]
+pub struct YomitanImportProgress {
+    pub bank: String,
+    pub current: u32,
+    pub total: usize,
+}
+
 pub struct YomitanParser {
     root_dir: PathBuf,
 }
@@ -89,9 +97,18 @@ impl YomitanParser {
         Ok(Self { root_dir })
     }
 
-    pub async fn create_db(self) -> Result<(), YomitanError> {
+    pub async fn create_db(
+        self,
+        progress_callback: impl Fn(YomitanImportProgress),
+    ) -> Result<(), YomitanError> {
+        let db_pathbuf = self.root_dir.join("index.db");
+        let db_path = db_pathbuf.as_path();
+        if db_path.exists() {
+            remove_file(&db_path).await?;
+        }
+
         let options = SqliteConnectOptions::new()
-            .filename(self.root_dir.join("index.db"))
+            .filename(db_path)
             .create_if_missing(true)
             .journal_mode(SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
@@ -104,6 +121,8 @@ impl YomitanParser {
         let db = SqlitePool::connect_with(options).await?;
 
         sqlx::migrate!("migrations/yomitan").run(&db).await?;
+
+        let mut json_files: HashMap<String, Vec<(u32, PathBuf)>> = HashMap::new();
 
         let mut entries = read_dir(self.root_dir).await?;
         while let Some(entry) = entries.next_entry().await? {
@@ -124,20 +143,45 @@ impl YomitanParser {
                 if let Some((bank_name, id_str)) = filestem.rsplit_once("_")
                     && let Ok(idx) = id_str.parse::<u32>()
                 {
-                    println!("{} ({})", bank_name, idx);
+                    match json_files.get_mut(bank_name) {
+                        Some(rs) => {
+                            rs.push((idx, path));
+                        }
+                        _ => {
+                            json_files.insert(bank_name.to_string(), vec![(idx, path)]);
+                        }
+                    };
+                }
+            }
+        }
 
-                    let json_str = tokio::fs::read_to_string(&path).await?;
+        let mut parsed_files: Vec<&PathBuf> = vec![];
 
-                    match bank_name {
-                        "kanji_bank" => {
-                            let rs: Vec<KanjiBankV3Entry> = serde_json::from_str(&json_str)?;
+        for (bank_name, rs) in json_files.iter_mut() {
+            rs.sort_by_key(|r| r.0);
 
-                            let mut tx = db.begin().await?;
-                            for r in rs {
-                                let r4s = serde_json::to_string(&r.4)?;
-                                let r5s = serde_json::to_string(&r.5)?;
+            let total = rs.len();
 
-                                sqlx::query("
+            for (idx, path) in rs {
+                progress_callback(YomitanImportProgress {
+                    bank: bank_name.to_string(),
+                    current: *idx,
+                    total,
+                });
+
+                let json_str = tokio::fs::read_to_string(&path).await?;
+
+                match bank_name.as_str() {
+                    "kanji_bank" => {
+                        parsed_files.push(path);
+                        let rs: Vec<KanjiBankV3Entry> = serde_json::from_str(&json_str)?;
+
+                        let mut tx = db.begin().await?;
+                        for r in rs {
+                            let r4s = serde_json::to_string(&r.4)?;
+                            let r5s = serde_json::to_string(&r.5)?;
+
+                            sqlx::query("
                                     INSERT INTO kanji (kanji, onyomi, kunyomi, tags, meanings, stats)
                                     VALUES (?, ?, ?, ?, ?, ?)
                                 ")
@@ -149,61 +193,64 @@ impl YomitanParser {
                                     .bind(r5s)
                                     .execute(&mut *tx)
                                     .await?;
-                            }
-                            tx.commit().await?;
                         }
-                        "kanji_meta_bank" => {
-                            let rs: Vec<KanjiMetaBankEntry> = serde_json::from_str(&json_str)?;
+                        tx.commit().await?;
+                    }
+                    "kanji_meta_bank" => {
+                        parsed_files.push(path);
+                        let rs: Vec<KanjiMetaBankEntry> = serde_json::from_str(&json_str)?;
 
-                            let mut tx = db.begin().await?;
-                            for r in rs {
-                                let mut q = sqlx::query(
-                                    "
+                        let mut tx = db.begin().await?;
+                        for r in rs {
+                            let mut q = sqlx::query(
+                                "
                                     INSERT INTO kanji_meta (kanji, `type`, `data`)
                                     VALUES (?, ?, ?)
                                 ",
-                                )
-                                .bind(r.0)
-                                .bind(r.1);
+                            )
+                            .bind(r.0)
+                            .bind(r.1);
 
-                                match r.2 {
-                                    StringOrNumber::Number(i) => q = q.bind(i),
-                                    StringOrNumber::String(s) => q = q.bind(s),
-                                }
-
-                                q.execute(&mut *tx).await?;
+                            match r.2 {
+                                StringOrNumber::Number(i) => q = q.bind(i),
+                                StringOrNumber::String(s) => q = q.bind(s),
                             }
-                            tx.commit().await?;
-                        }
-                        "tag_bank" => {
-                            let rs: Vec<TagBankEntry> = serde_json::from_str(&json_str)?;
 
-                            let mut tx = db.begin().await?;
-                            for r in rs {
-                                sqlx::query(
-                                    "
+                            q.execute(&mut *tx).await?;
+                        }
+                        tx.commit().await?;
+                    }
+                    "tag_bank" => {
+                        parsed_files.push(path);
+                        let rs: Vec<TagBankEntry> = serde_json::from_str(&json_str)?;
+
+                        let mut tx = db.begin().await?;
+                        for r in rs {
+                            sqlx::query(
+                                "
                                     INSERT INTO tag (name, category, sort_order, notes, score)
                                     VALUES (?, ?, ?, ?, ?)
                                 ",
-                                )
-                                .bind(r.0)
-                                .bind(r.1)
-                                .bind(r.2)
-                                .bind(r.3)
-                                .bind(r.4)
-                                .execute(&mut *tx)
-                                .await?;
-                            }
-                            tx.commit().await?;
+                            )
+                            .bind(r.0)
+                            .bind(r.1)
+                            .bind(r.2)
+                            .bind(r.3)
+                            .bind(r.4)
+                            .execute(&mut *tx)
+                            .await?;
                         }
-                        "term_bank" => {
-                            let rs: Vec<TermBankV3Entry> = serde_json::from_str(&json_str)?;
+                        tx.commit().await?;
+                    }
+                    "term_bank" => {
+                        parsed_files.push(path);
+                        let rs: Vec<TermBankV3Entry> = serde_json::from_str(&json_str)?;
 
-                            let mut tx = db.begin().await?;
-                            for r in rs {
-                                let r5s = serde_json::to_string(&r.5)?;
+                        let mut tx = db.begin().await?;
+                        for r in rs {
+                            let r5s = serde_json::to_string(&r.5)?;
 
-                                sqlx::query(
+                            sqlx::query(
                                     "
                                     INSERT INTO term (term, reading, def_tags, rules, score, glossary, sequence, tags)
                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -219,37 +266,39 @@ impl YomitanParser {
                                 .bind(r.7)
                                 .execute(&mut *tx)
                                 .await?;
-                            }
-                            tx.commit().await?;
                         }
-                        "term_meta_bank" => {
-                            let rs: Vec<TermMetaBankEntry> = serde_json::from_str(&json_str)?;
+                        tx.commit().await?;
+                    }
+                    "term_meta_bank" => {
+                        parsed_files.push(path);
+                        let rs: Vec<TermMetaBankEntry> = serde_json::from_str(&json_str)?;
 
-                            let mut tx = db.begin().await?;
-                            for r in rs {
-                                let r2s = serde_json::to_string(&r.2)?;
+                        let mut tx = db.begin().await?;
+                        for r in rs {
+                            let r2s = serde_json::to_string(&r.2)?;
 
-                                sqlx::query(
-                                    "
+                            sqlx::query(
+                                "
                                     INSERT INTO term_meta (term, type, `data`)
                                     VALUES (?, ?, ?)
                                 ",
-                                )
-                                .bind(r.0)
-                                .bind(r.1)
-                                .bind(r2s)
-                                .execute(&mut *tx)
-                                .await?;
-                            }
-                            tx.commit().await?;
+                            )
+                            .bind(r.0)
+                            .bind(r.1)
+                            .bind(r2s)
+                            .execute(&mut *tx)
+                            .await?;
                         }
-                        _ => (),
-                    };
-                }
+                        tx.commit().await?;
+                    }
+                    _ => (),
+                };
             }
         }
 
         db.close().await;
+
+        join_all(parsed_files.iter().map(|f| remove_file(f))).await;
 
         Ok(())
     }

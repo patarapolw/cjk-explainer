@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use yomitan_parser::yomitan::YomitanParser;
 
 use crate::error::AppError;
@@ -10,7 +10,10 @@ pub async fn import_yomitan_zip(app: AppHandle, path: &str) -> Result<(), AppErr
     let db_path = app.path().app_config_dir()?;
 
     let yomi = YomitanParser::from_zip(db_path.join(path), db_path.join("yomi_1")).await?;
-    yomi.create_db().await?;
+    yomi.create_db(|p| {
+        app.emit("yomitan-import-progress", p).unwrap();
+    })
+    .await?;
 
     Ok(())
 }

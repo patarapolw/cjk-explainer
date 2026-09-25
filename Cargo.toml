@@ -2,9 +2,12 @@
 members = ["yomitan-parser", "src-tauri"]
 resolver = "3"
 
+# Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
-lto = true
 codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
 strip = true
 # debug = true       # keep symbols
 # lto = false        # disable LTO

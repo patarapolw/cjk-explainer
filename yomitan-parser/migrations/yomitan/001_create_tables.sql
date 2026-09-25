@@ -22,9 +22,9 @@ CREATE TABLE kanji_meta (
 CREATE TABLE tag (
     "name"          TEXT NOT NULL,
     category        TEXT,
-    sort_order      INTEGER NOT NULL DEFAULT 0,
+    sort_order      INTEGER,
     notes           TEXT,
-    score           INTEGER NOT NULL DEFAULT 0,
+    score           INTEGER,
     PRIMARY KEY ("name")
 );
 
@@ -33,7 +33,7 @@ CREATE TABLE term (
     reading         TEXT NOT NULL,
     def_tags        TEXT,
     rules           TEXT,
-    score           INTEGER NOT NULL DEFAULT 0,
+    score           INTEGER,
     glossary        TEXT,
     "sequence"      INTEGER,
     tags            TEXT
