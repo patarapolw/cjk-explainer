@@ -11,6 +11,7 @@ pub enum YomitanError {
     StdIo(std::io::Error),
     Zip(ZipError),
     JSON(serde_json::Error),
+    Error(String),
 }
 
 impl fmt::Display for YomitanError {
@@ -22,6 +23,7 @@ impl fmt::Display for YomitanError {
             Self::StdIo(e) => write!(f, "std::io::Error: {e}"),
             Self::Zip(e) => write!(f, "ZipError: {e}"),
             Self::JSON(e) => write!(f, "serde_json::Error: {e}"),
+            Self::Error(e) => write!(f, "Error: {e}"),
         }
     }
 }
@@ -61,6 +63,12 @@ impl From<zip::result::ZipError> for YomitanError {
 impl From<serde_json::Error> for YomitanError {
     fn from(e: serde_json::Error) -> Self {
         Self::JSON(e)
+    }
+}
+
+impl From<String> for YomitanError {
+    fn from(e: String) -> Self {
+        Self::Error(e)
     }
 }
 

@@ -101,7 +101,7 @@ impl YomitanParser {
         self,
         progress_callback: impl Fn(YomitanImportProgress),
     ) -> Result<(), YomitanError> {
-        let db_pathbuf = self.root_dir.join("index.db");
+        let db_pathbuf = self.root_dir.join("content.db");
         let db_path = db_pathbuf.as_path();
         if db_path.exists() {
             remove_file(&db_path).await?;
@@ -113,14 +113,14 @@ impl YomitanParser {
             .journal_mode(SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
             .busy_timeout(Duration::from_secs(5))
-            .foreign_keys(true)
+            .foreign_keys(false)
             .pragma("cache_size", "-64000") // approximately 64 MiB
             .pragma("temp_store", "MEMORY")
             .pragma("mmap_size", "268435456"); // 256 MiB
 
         let db = SqlitePool::connect_with(options).await?;
 
-        sqlx::migrate!("migrations/yomitan").run(&db).await?;
+        sqlx::migrate!("migrations/parser").run(&db).await?;
 
         let mut json_files: HashMap<String, Vec<(u32, PathBuf)>> = HashMap::new();
 
@@ -296,11 +296,20 @@ impl YomitanParser {
             }
         }
 
-        db.close().await;
+        let rows = sqlx::query("PRAGMA foreign_key_check")
+            .fetch_all(&db)
+            .await?;
+        if rows.is_empty() {
+            db.close().await;
+            join_all(parsed_files.iter().map(|f| remove_file(f))).await;
 
-        join_all(parsed_files.iter().map(|f| remove_file(f))).await;
+            Ok(())
+        } else {
+            let e = format!("import left {} FK violations", rows.len());
+            db.close().await;
 
-        Ok(())
+            Err(YomitanError::Error(e))
+        }
     }
 }
 

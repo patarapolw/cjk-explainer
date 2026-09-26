@@ -1,2 +1,3 @@
 pub mod error;
-pub mod yomitan;
+pub mod parser;
+pub mod search;

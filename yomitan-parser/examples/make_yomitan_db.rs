@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use tokio::fs::read_dir;
-use yomitan_parser::{error::YomitanError, yomitan::YomitanParser};
+use yomitan_parser::{error::YomitanError, parser::YomitanParser};
 
 #[tokio::main]
 async fn main() -> Result<(), YomitanError> {

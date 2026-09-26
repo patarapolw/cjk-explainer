@@ -1,5 +1,5 @@
 use tauri::{AppHandle, Emitter, Manager};
-use yomitan_parser::yomitan::YomitanParser;
+use yomitan_parser::parser::YomitanParser;
 
 use crate::error::AppError;
 
