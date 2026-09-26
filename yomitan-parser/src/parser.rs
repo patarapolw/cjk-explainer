@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::PathBuf, time::Duration};
 use futures::future::join_all;
 use serde::{Deserialize, Serialize};
 use sqlx::{
-    SqlitePool,
+    Pool, Sqlite, SqlitePool,
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqliteSynchronous},
 };
 use tokio::fs::{create_dir_all, read_dir, remove_file};
@@ -16,6 +16,48 @@ use crate::error::YomitanError;
 enum StringOrNumber {
     String(String),
     Number(f64),
+}
+
+/// @see https://github.com/yomidevs/yomitan/blob/master/ext/data/schemas/dictionary-index-schema.json
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct YomitanIndex {
+    pub title: String,
+    pub revision: String,
+
+    // anyOf required: format | version
+    // dependencies: "isUpdatable": ["indexUrl", "downloadUrl"]
+    #[serde(default)]
+    pub minimum_yomitan_version: Option<String>,
+    #[serde(default)]
+    pub sequenced: bool, // [default=false] Whether or not this dictionary contains sequencing information for related terms.
+    // serde(default) defaults to false for bool
+    #[serde(default)]
+    pub format: Option<i8>, // [1|2|3] Format of data found in the JSON data files.
+    #[serde(default)]
+    pub version: Option<i8>, // [1|2|3] Alias for format.
+    #[serde(default)]
+    pub author: Option<String>, // Creator of the dictionary.
+    #[serde(default)]
+    pub is_updatable: bool, // Whether this dictionary contains links to its latest version.
+    #[serde(default)]
+    pub index_url: Option<String>, // URL for the index file of the latest revision of the dictionary, used to check for updates.
+    #[serde(default)]
+    pub download_url: Option<String>, // URL for the download of the latest revision of the dictionary.
+    #[serde(default)]
+    pub url: Option<String>, // URL for the source of the dictionary, displayed in the dictionary details.
+    #[serde(default)]
+    pub description: Option<String>, // Description of the dictionary data.
+    #[serde(default)]
+    pub attribution: Option<String>, // Attribution information for the dictionary data.
+    #[serde(default)]
+    pub source_language: Option<String>, // Language of the terms in the dictionary.
+    #[serde(default)]
+    pub target_language: Option<String>, // Main language of the definitions in the dictionary.
+    #[serde(default)]
+    pub frequency_mode: Option<String>, // ["occurrence-based" | "rank-based"]
+    #[serde(default)]
+    pub tag_meta: Option<HashMap<String, serde_json::Value>>, // Tag information for terms and kanji. This object is obsolete and individual tag files should be used instead.
 }
 
 /// TODO: @see https://github.com/yomidevs/yomitan/blob/master/ext/data/schemas/dictionary-kanji-bank-v1-schema.json
@@ -318,4 +360,34 @@ fn unzip(path: PathBuf, out_dir: PathBuf) -> zip::result::ZipResult<()> {
     let mut archive = ZipArchive::new(file)?;
     archive.extract(out_dir)?;
     Ok(())
+}
+
+#[derive(Clone)]
+pub struct YomitanReader {
+    pub root_dir: PathBuf,
+    pub db: Pool<Sqlite>,
+}
+
+impl YomitanReader {
+    pub fn open(root_dir: PathBuf) -> Self {
+        let options = SqliteConnectOptions::new()
+            .filename(root_dir.join("content.db"))
+            .foreign_keys(true);
+
+        // connect with lazy doesn't need to await,
+        // but it's prob a large db file taking load time, anyway.
+        let db = SqlitePool::connect_lazy_with(options);
+
+        Self { root_dir, db }
+    }
+
+    pub async fn close(self) {
+        self.db.close().await;
+    }
+
+    pub async fn get_index_json(self) -> Result<YomitanIndex, YomitanError> {
+        let json_str: String = tokio::fs::read_to_string(self.root_dir.join("index.json")).await?;
+        let index_json: YomitanIndex = serde_json::from_str(&json_str)?;
+        Ok(index_json)
+    }
 }
