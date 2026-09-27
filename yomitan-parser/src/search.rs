@@ -21,8 +21,8 @@ pub struct YomitanSearchInitProgress {
 impl YomitanSearch {
     pub async fn init(
         db_path: PathBuf,
-        dict_paths: Vec<String>,
-        source_language: String,
+        dict_paths: Vec<&str>,
+        source_language: &str,
         progress_callback: impl Fn(YomitanSearchInitProgress),
     ) -> Result<Self, YomitanError> {
         let options = SqliteConnectOptions::new()
@@ -38,7 +38,7 @@ impl YomitanSearch {
         let mut dicts = HashMap::new();
 
         for d in dict_paths {
-            let reader = YomitanReader::open(root_dir.join(d.as_str()));
+            let reader = YomitanReader::open(root_dir.join(d));
 
             let result = sqlx::query("SELECT `path` FROM `index` WHERE `path` = $1")
                 .bind(&d)

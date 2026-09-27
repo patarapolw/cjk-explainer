@@ -1,15 +1,12 @@
-use std::{
-    collections::HashMap,
-    fs::{create_dir_all, read_dir, read_to_string, remove_file},
-    path::PathBuf,
-    time::Duration,
-};
+use std::{collections::HashMap, path::PathBuf, time::Duration};
 
+use futures::future::join_all;
 use serde::{Deserialize, Serialize};
 use sqlx::{
     Pool, Sqlite, SqlitePool,
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqliteSynchronous},
 };
+use tokio::fs::{create_dir_all, read_dir, remove_file};
 use zip::ZipArchive;
 
 use crate::error::YomitanError;
@@ -135,7 +132,7 @@ pub struct YomitanParser {
 impl YomitanParser {
     pub async fn from_zip(zip_file: PathBuf, out_dir: PathBuf) -> Result<Self, YomitanError> {
         let root_dir = out_dir.clone();
-        create_dir_all(root_dir.clone())?;
+        create_dir_all(root_dir.clone()).await?;
 
         tokio::task::spawn_blocking(move || unzip(zip_file, out_dir)).await??;
 
@@ -149,7 +146,7 @@ impl YomitanParser {
         let db_pathbuf = self.root_dir.join("content.db");
         let db_path = db_pathbuf.as_path();
         if db_path.exists() {
-            remove_file(&db_path)?;
+            remove_file(&db_path).await?;
         }
 
         let options = SqliteConnectOptions::new()
@@ -169,9 +166,9 @@ impl YomitanParser {
 
         let mut json_files: HashMap<String, Vec<(u32, PathBuf)>> = HashMap::new();
 
-        for entry in read_dir(self.root_dir)? {
-            let entry = entry?;
-            if !entry.file_type()?.is_file() {
+        let mut entries = read_dir(self.root_dir).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            if !entry.file_type().await?.is_file() {
                 continue;
             }
 
@@ -214,7 +211,7 @@ impl YomitanParser {
                     total,
                 });
 
-                let json_str = read_to_string(&path)?;
+                let json_str = tokio::fs::read_to_string(&path).await?;
 
                 match bank_name.as_str() {
                     "kanji_bank" => {
@@ -346,10 +343,7 @@ impl YomitanParser {
             .await?;
         if rows.is_empty() {
             db.close().await;
-
-            for f in parsed_files {
-                remove_file(f)?;
-            }
+            join_all(parsed_files.iter().map(|f| remove_file(f))).await;
 
             Ok(())
         } else {
@@ -392,7 +386,7 @@ impl YomitanReader {
     }
 
     pub async fn get_index_json(self) -> Result<YomitanIndex, YomitanError> {
-        let json_str: String = read_to_string(self.root_dir.join("index.json"))?;
+        let json_str: String = tokio::fs::read_to_string(self.root_dir.join("index.json")).await?;
         let index_json: YomitanIndex = serde_json::from_str(&json_str)?;
         Ok(index_json)
     }

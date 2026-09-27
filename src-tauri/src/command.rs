@@ -18,8 +18,8 @@ pub async fn import_yomitan_zip(app: AppHandle, path: &str) -> Result<(), AppErr
 
     let _ = YomitanSearch::init(
         app_config_dir.join("yomitan.db"),
-        vec!["yomi_1".to_string()],
-        "ja-JP".to_string(),
+        vec!["yomi_1"],
+        "ja-JP",
         |p| {
             app.emit("yomitan-init-progress", p).unwrap();
         },
