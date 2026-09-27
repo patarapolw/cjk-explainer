@@ -26,3 +26,7 @@ tauri-plugin-clipboard-manager = "2"
 tauri-plugin-http = "2.6.0"
 tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 yomitan-parser = { path = "../yomitan-parser"}
+lindera = { version = "6.2.0", features = ["embed-ipadic-neologd", "embed-ko-dic", "embed-jieba"] }
+lindera-ipadic-neologd = "6.2.0"
+lindera-ko-dic = "6.2.0"
+lindera-jieba = "6.2.0"

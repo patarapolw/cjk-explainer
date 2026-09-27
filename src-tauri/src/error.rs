@@ -1,11 +1,13 @@
 use std::{error::Error, fmt};
 
+use lindera::error::LinderaError;
 use yomitan_parser::error::YomitanError;
 
 #[derive(Debug)]
 pub enum AppError {
     Tauri(tauri::Error),
     Yomitan(YomitanError),
+    Lindera(LinderaError),
 }
 
 impl fmt::Display for AppError {
@@ -13,6 +15,7 @@ impl fmt::Display for AppError {
         match self {
             Self::Tauri(e) => write!(f, "tauri::Error: {e}"),
             Self::Yomitan(e) => write!(f, "YomitanError: {e}"),
+            Self::Lindera(e) => write!(f, "LinderaError: {e}"),
         }
     }
 }
@@ -28,6 +31,12 @@ impl From<tauri::Error> for AppError {
 impl From<YomitanError> for AppError {
     fn from(e: YomitanError) -> Self {
         Self::Yomitan(e)
+    }
+}
+
+impl From<LinderaError> for AppError {
+    fn from(e: LinderaError) -> Self {
+        Self::Lindera(e)
     }
 }
 

@@ -24,4 +24,7 @@ app
 if (await signIn()) {
   await runSync();
   await invoke("greet", { name: "lala" }).then(console.log);
+  await invoke("segment_ja", { text: "おはよう御座います" }).then((o) =>
+    console.log(JSON.stringify(o)),
+  );
 }
