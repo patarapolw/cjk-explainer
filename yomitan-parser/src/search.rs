@@ -11,7 +11,7 @@ pub struct YomitanSearch {
     pub dicts: HashMap<String, YomitanReader>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct YomitanSearchInitProgress {
     pub dict: String,
     pub current: i64,
