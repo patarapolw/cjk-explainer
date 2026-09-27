@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use lindera::{dictionary::load_dictionary, mode::Mode, segmenter::Segmenter};
+use lindera_analysis::tokenizer::Tokenizer;
 use tauri::{Manager, State};
 
 use crate::error::AppError;
@@ -19,17 +18,15 @@ async fn greet(name: &str) -> Result<String, String> {
 async fn segment_ja(
     text: &str,
     state: State<'_, AppState>,
-) -> Result<HashMap<String, Vec<String>>, AppError> {
-    let mut out = HashMap::new();
+) -> Result<Vec<(String, Vec<String>)>, AppError> {
+    let mut out = vec![];
 
-    let mut tokens = state
-        .tokenizer_ja
-        .segment(std::borrow::Cow::Borrowed(text))?;
+    let mut tokens = state.tokenizer_ja.tokenize(text)?;
     for token in tokens.iter_mut() {
-        out.insert(
+        out.push((
             token.surface.to_string(),
             token.details().iter().map(|s| s.to_string()).collect(),
-        );
+        ));
     }
 
     Ok(out)
@@ -39,17 +36,15 @@ async fn segment_ja(
 async fn segment_zh(
     text: &str,
     state: State<'_, AppState>,
-) -> Result<HashMap<String, Vec<String>>, AppError> {
-    let mut out = HashMap::new();
+) -> Result<Vec<(String, Vec<String>)>, AppError> {
+    let mut out = vec![];
 
-    let mut tokens = state
-        .tokenizer_zh
-        .segment(std::borrow::Cow::Borrowed(text))?;
+    let mut tokens = state.tokenizer_zh.tokenize(text)?;
     for token in tokens.iter_mut() {
-        out.insert(
+        out.push((
             token.surface.to_string(),
             token.details().iter().map(|s| s.to_string()).collect(),
-        );
+        ));
     }
 
     Ok(out)
@@ -59,25 +54,25 @@ async fn segment_zh(
 async fn segment_ko(
     text: &str,
     state: State<'_, AppState>,
-) -> Result<HashMap<String, Vec<String>>, AppError> {
-    let mut out = HashMap::new();
+) -> Result<Vec<(String, Vec<String>)>, AppError> {
+    let mut out = vec![];
 
     let mut tokens = state
         .tokenizer_ko
         .segment(std::borrow::Cow::Borrowed(text))?;
     for token in tokens.iter_mut() {
-        out.insert(
+        out.push((
             token.surface.to_string(),
             token.details().iter().map(|s| s.to_string()).collect(),
-        );
+        ));
     }
 
     Ok(out)
 }
 
 struct AppState {
-    tokenizer_ja: Segmenter,
-    tokenizer_zh: Segmenter,
+    tokenizer_ja: Tokenizer,
+    tokenizer_zh: Tokenizer,
     tokenizer_ko: Segmenter,
 }
 
@@ -95,12 +90,12 @@ pub fn run() {
         .setup(|app| {
             let tokenizer_ja = {
                 let dictionary = load_dictionary("embedded://ipadic-neologd")?;
-                Segmenter::new(Mode::Normal, dictionary, None)
+                Tokenizer::new(Segmenter::new(Mode::Normal, dictionary, None))
             };
 
             let tokenizer_zh = {
                 let dictionary = load_dictionary("embedded://jieba")?;
-                Segmenter::new(Mode::Normal, dictionary, None)
+                Tokenizer::new(Segmenter::new(Mode::Normal, dictionary, None))
             };
 
             let tokenizer_ko = {
