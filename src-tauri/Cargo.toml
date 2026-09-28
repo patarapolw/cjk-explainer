@@ -31,3 +31,4 @@ lindera-analysis = "6.2.0"
 lindera-unidic = "6.2.0"
 lindera-ko-dic = "6.2.0"
 lindera-jieba = "6.2.0"
+tokio = { version = "1.53.1", features = ["io-util"] }

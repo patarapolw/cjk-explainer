@@ -6,9 +6,12 @@ use yomitan_parser::error::YomitanError;
 #[derive(Debug)]
 pub enum AppError {
     Tauri(tauri::Error),
+    TauriReqwest(tauri_plugin_http::reqwest::Error),
     Yomitan(YomitanError),
     Lindera(LinderaError),
     MutexPoisoned(String),
+    IOError(std::io::Error),
+    Error(String),
 }
 
 impl fmt::Display for AppError {
@@ -16,8 +19,11 @@ impl fmt::Display for AppError {
         match self {
             Self::Tauri(e) => write!(f, "tauri::Error: {e}"),
             Self::Yomitan(e) => write!(f, "YomitanError: {e}"),
+            Self::TauriReqwest(e) => write!(f, "TauriReqwest: {e}"),
             Self::Lindera(e) => write!(f, "LinderaError: {e}"),
             Self::MutexPoisoned(e) => write!(f, "MutexPoisoned: {e}"),
+            Self::IOError(e) => write!(f, "IOError: {e}"),
+            Self::Error(e) => write!(f, "Error: {e}"),
         }
     }
 }
@@ -27,6 +33,12 @@ impl Error for AppError {}
 impl From<tauri::Error> for AppError {
     fn from(e: tauri::Error) -> Self {
         Self::Tauri(e)
+    }
+}
+
+impl From<tauri_plugin_http::reqwest::Error> for AppError {
+    fn from(e: tauri_plugin_http::reqwest::Error) -> Self {
+        Self::TauriReqwest(e)
     }
 }
 
@@ -45,6 +57,12 @@ impl From<LinderaError> for AppError {
 impl<T> From<PoisonError<T>> for AppError {
     fn from(e: PoisonError<T>) -> Self {
         Self::MutexPoisoned(e.to_string())
+    }
+}
+
+impl From<std::io::Error> for AppError {
+    fn from(e: std::io::Error) -> Self {
+        Self::IOError(e)
     }
 }
 

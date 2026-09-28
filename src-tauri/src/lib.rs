@@ -9,6 +9,7 @@ use tauri::Manager;
 
 mod command;
 mod db;
+mod download;
 mod error;
 mod tokenize;
 
@@ -37,6 +38,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            download::download_url,
             tokenize::segment,
             tokenize::tokenize,
             command::import_yomitan_zip,

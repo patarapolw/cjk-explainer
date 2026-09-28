@@ -11,7 +11,12 @@
     "clipboard-manager:allow-read-text",
     {
       "identifier": "http:default",
-      "allow": [{ "url": "https://api.deepseek.com/chat/completions" }]
+      "allow": [
+        { "url": "https://api.deepseek.com/chat/completions" },
+        { "url": "https://api.github.com/repos/*/releases/latest" },
+        { "url": "https://github.com/*/*/releases/download/*/*.zip" },
+        { "url": "https://storage-worker.*.workers.dev" }
+      ]
     },
     "sql:default",
     "sql:allow-execute"
