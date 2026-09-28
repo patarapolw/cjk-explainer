@@ -1,8 +1,9 @@
+import "./index.css";
+
 import PrimeVue from "primevue/config";
 import { createApp } from "vue";
 
 import Aura from "@primeuix/themes/aura";
-import { invoke } from "@tauri-apps/api/core";
 
 import App from "./App.vue";
 import { runSync } from "./db/sync.ts";
@@ -23,8 +24,4 @@ app
 
 if (await signIn()) {
   await runSync();
-  await invoke("tokenize", {
-    model: "embedded://unidic",
-    text: "おはようございます。おはよう御座います",
-  }).then(console.log);
 }

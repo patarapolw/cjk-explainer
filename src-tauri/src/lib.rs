@@ -22,6 +22,7 @@ struct AppState {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations("sqlite:explainer.db", db::explainer_migrations())
@@ -39,6 +40,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             download::download_url,
+            download::unzip,
             tokenize::segment,
             tokenize::tokenize,
             command::import_yomitan_zip,

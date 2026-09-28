@@ -4,13 +4,13 @@ use tauri_plugin_http::reqwest;
 use tokio::{fs::remove_file, io::AsyncWriteExt};
 
 use serde::Serialize;
+use zip::ZipArchive;
 
 use crate::error::AppError;
 
 #[tauri::command]
 pub async fn download_url(app: AppHandle, url: &str, filepath: &str) -> Result<bool, AppError> {
     let app_data_dir = app.path().app_data_dir()?;
-    println!("{:?}", app_data_dir);
 
     download_url_local(url, &app_data_dir, filepath, |progress| {
         app.emit("download-url-progress", progress).unwrap();
@@ -18,7 +18,26 @@ pub async fn download_url(app: AppHandle, url: &str, filepath: &str) -> Result<b
     .await
 }
 
+#[tauri::command]
+pub async fn unzip(app: AppHandle, filepath: &str, out_dir: &str) -> Result<(), AppError> {
+    let app_data_dir = app.path().app_data_dir()?;
+    let filepath = app_data_dir.join(filepath);
+    let out_dir = app_data_dir.join(out_dir);
+
+    tokio::task::spawn_blocking(move || unzip_sync(filepath, out_dir)).await??;
+
+    Ok(())
+}
+
+fn unzip_sync(filepath: PathBuf, out_dir: PathBuf) -> zip::result::ZipResult<()> {
+    let file = std::fs::File::open(filepath)?; // Use sync version in thread
+    let mut archive = ZipArchive::new(file)?;
+    archive.extract(out_dir)?;
+    Ok(())
+}
+
 #[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 struct DownloadProgress {
     url: String,
     filepath: String,

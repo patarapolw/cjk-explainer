@@ -24,11 +24,10 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-http = "2.6.0"
-tauri-plugin-sql = { version = "2", features = ["sqlite"] }
-yomitan-parser = { path = "../yomitan-parser"}
-lindera = { version = "6.2.0", features = ["embed-unidic", "embed-ko-dic", "embed-jieba"] }
-lindera-analysis = "6.2.0"
-lindera-unidic = "6.2.0"
-lindera-ko-dic = "6.2.0"
-lindera-jieba = "6.2.0"
+tauri-plugin-sql = { version = "2.4.1", features = ["sqlite"] }
+tauri-plugin-fs = "2.6.0"
 tokio = { version = "1.53.1", features = ["io-util"] }
+zip = "8.6.0"
+yomitan-parser = { path = "../yomitan-parser" }
+lindera = "6.2.0"
+lindera-analysis = "6.2.0"

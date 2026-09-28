@@ -81,10 +81,24 @@
       <RouterView />
     </SidebarMain>
   </SidebarLayout>
+  <Dialog v-model:visible="isLoading" modal :closable="false">
+    <div class="modal-content">
+      <p>
+        <small>
+          Downloading {{ downloading.filepath }} from {{ downloading.url }}
+        </small>
+      </p>
+      <ProgressBar
+        v-if="downloading.percentage"
+        :value="downloading.percentage"
+        :show-value="false"
+      />
+    </div>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, reactive, ref } from "vue";
 
 import SidebarLayout from "primevue/sidebarlayout";
 import SidebarBackdrop from "primevue/sidebarbackdrop";
@@ -101,10 +115,30 @@ import SidebarGroupContent from "primevue/sidebargroupcontent";
 import SidebarMenu from "primevue/sidebarmenu";
 import SidebarMenuItem from "primevue/sidebarmenuitem";
 import SidebarMenuButton from "primevue/sidebarmenubutton";
+import Dialog from "primevue/dialog";
+import ProgressBar from "primevue/progressbar";
 
 import SidebarIcon from "@primeicons/vue/sidebar";
 import TextColorIcon from "@primeicons/vue/text-color";
 import CogIcon from "@primeicons/vue/cog";
+
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { exists, BaseDirectory } from "@tauri-apps/plugin-fs";
+
+interface DownloadUrlProgress {
+  url: string;
+  filepath: string;
+  contentLength: number;
+  downloaded: number;
+}
+
+const isLoading = ref(false);
+const downloading = reactive({
+  url: "",
+  filepath: "",
+  percentage: 0,
+});
 
 const isMobile = ref(false);
 const navOpen = ref(false);
@@ -123,6 +157,46 @@ onMounted(() => {
   // navOpen.value = !isMobile.value;
 
   mql.addEventListener("change", onMqlChange);
+
+  const model = "unidic";
+  const lindera_version = "6.2.0";
+  const filepath = `lindera-${model}-${lindera_version}.zip`;
+  exists(filepath, { baseDir: BaseDirectory.AppData })
+    .then(async (isExists) => {
+      if (!isExists) {
+        isLoading.value = true;
+
+        const unlisten = await listen<DownloadUrlProgress>(
+          "download-url-progress",
+          ({ payload }) => {
+            downloading.url = payload.url;
+            downloading.filepath = payload.filepath;
+            if (payload.contentLength) {
+              downloading.percentage = Math.round(
+                (100 * payload.downloaded) / payload.contentLength,
+              );
+            }
+          },
+        );
+
+        await invoke("download_url", {
+          url: `https://github.com/lindera/lindera/releases/download/v${lindera_version}/lindera-${model}-${lindera_version}.zip`,
+          filepath,
+        }).finally(unlisten);
+
+        await invoke("unzip", { filepath, outDir: "lindera" });
+      }
+    })
+    .then(async () => {
+      isLoading.value = false;
+      await invoke("tokenize", {
+        model,
+        text: "おはようございます。おはよう御座います",
+      }).then((r) => {
+        console.log(r);
+        console.log(JSON.stringify(r));
+      });
+    });
 });
 
 onBeforeUnmount(() => {
@@ -149,24 +223,10 @@ onBeforeUnmount(() => {
 .header-panel {
   flex-grow: 1;
 }
-</style>
 
-<style>
-body {
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  height: 100vh;
-  width: 100vw;
-}
-
-:root {
-  font-family: sans-serif;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
+.modal-content {
+  width: calc(100vw - 4em);
+  max-width: 1000px;
+  height: calc(80vh - 4em);
 }
 </style>
