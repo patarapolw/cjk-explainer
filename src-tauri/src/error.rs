@@ -1,4 +1,4 @@
-use std::{error::Error, fmt};
+use std::{error::Error, fmt, sync::PoisonError};
 
 use lindera::error::LinderaError;
 use yomitan_parser::error::YomitanError;
@@ -8,6 +8,7 @@ pub enum AppError {
     Tauri(tauri::Error),
     Yomitan(YomitanError),
     Lindera(LinderaError),
+    MutexPoisoned(String),
 }
 
 impl fmt::Display for AppError {
@@ -16,6 +17,7 @@ impl fmt::Display for AppError {
             Self::Tauri(e) => write!(f, "tauri::Error: {e}"),
             Self::Yomitan(e) => write!(f, "YomitanError: {e}"),
             Self::Lindera(e) => write!(f, "LinderaError: {e}"),
+            Self::MutexPoisoned(e) => write!(f, "MutexPoisoned: {e}"),
         }
     }
 }
@@ -37,6 +39,12 @@ impl From<YomitanError> for AppError {
 impl From<LinderaError> for AppError {
     fn from(e: LinderaError) -> Self {
         Self::Lindera(e)
+    }
+}
+
+impl<T> From<PoisonError<T>> for AppError {
+    fn from(e: PoisonError<T>) -> Self {
+        Self::MutexPoisoned(e.to_string())
     }
 }
 

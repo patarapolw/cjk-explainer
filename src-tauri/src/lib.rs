@@ -1,6 +1,9 @@
-use std::{collections::HashMap, sync::Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
-use lindera::{dictionary::Dictionary, segmenter::Segmenter};
+use lindera::segmenter::Segmenter;
 use lindera_analysis::tokenizer::Tokenizer;
 use tauri::Manager;
 
@@ -11,9 +14,8 @@ mod tokenize;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 struct AppState {
-    dictionary: Mutex<HashMap<String, Dictionary>>,
-    segmenter: Mutex<HashMap<String, Segmenter>>,
-    tokenizer: Mutex<HashMap<String, Tokenizer>>,
+    segmenter: Mutex<HashMap<String, Arc<Segmenter>>>,
+    tokenizer: Mutex<HashMap<String, Arc<Tokenizer>>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -29,7 +31,6 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             app.manage(AppState {
-                dictionary: Mutex::new(HashMap::new()),
                 segmenter: Mutex::new(HashMap::new()),
                 tokenizer: Mutex::new(HashMap::new()),
             });

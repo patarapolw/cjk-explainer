@@ -1,9 +1,6 @@
-use lindera::{
-    dictionary::{Dictionary, load_dictionary},
-    mode::Mode,
-    segmenter::Segmenter,
-};
+use lindera::{dictionary::load_dictionary, mode::Mode, segmenter::Segmenter};
 use lindera_analysis::tokenizer::Tokenizer;
+use std::sync::Arc;
 use tauri::State;
 
 use crate::{AppState, error::AppError};
@@ -14,7 +11,7 @@ pub async fn segment(
     text: &str,
     state: State<'_, AppState>,
 ) -> Result<Vec<(String, Vec<String>)>, AppError> {
-    let segmenter = get_segmenter(model, state.clone())?;
+    let segmenter = get_segmenter(model, &state)?;
 
     let mut out = vec![];
     let mut tokens = segmenter.segment(std::borrow::Cow::Borrowed(text))?;
@@ -34,17 +31,16 @@ pub async fn tokenize(
     text: &str,
     state: State<'_, AppState>,
 ) -> Result<Vec<(String, Vec<String>)>, AppError> {
-    let mut tokenizer_map = state
-        .tokenizer
-        .lock()
-        .expect("tokenizer map can't be retrieved");
-    let tokenizer = match tokenizer_map.get(model) {
-        Some(t) => t.clone(),
-        None => {
-            let s = get_segmenter(model, state.clone())?;
-            let t = Tokenizer::new(s);
-            tokenizer_map.insert(model.to_string(), t.clone());
-            t
+    let tokenizer = {
+        let mut tokenizer_map = state.tokenizer.lock()?;
+        match tokenizer_map.get(model) {
+            Some(t) => Arc::clone(t),
+            None => {
+                let segmenter = get_segmenter(model, &state)?;
+                let tokenizer = Arc::new(Tokenizer::new((*segmenter).clone()));
+                tokenizer_map.insert(model.to_string(), Arc::clone(&tokenizer));
+                tokenizer
+            }
         }
     };
 
@@ -60,33 +56,14 @@ pub async fn tokenize(
     Ok(out)
 }
 
-fn get_dictionary(model: &str, state: State<'_, AppState>) -> Result<Dictionary, AppError> {
-    let mut dictionary_map = state
-        .dictionary
-        .lock()
-        .expect("dictionary map can't be retrieved");
+fn get_segmenter(model: &str, state: &AppState) -> Result<Arc<Segmenter>, AppError> {
+    let mut segmenter_map = state.segmenter.lock()?;
+    if let Some(segmenter) = segmenter_map.get(model) {
+        return Ok(Arc::clone(segmenter));
+    }
 
-    Ok(match dictionary_map.get(model) {
-        Some(d) => d.clone(),
-        None => {
-            let d = load_dictionary(model)?;
-            dictionary_map.insert(model.to_string(), d.clone());
-            d
-        }
-    })
-}
-
-fn get_segmenter(model: &str, state: State<'_, AppState>) -> Result<Segmenter, AppError> {
-    let mut segmenter_map = state
-        .segmenter
-        .lock()
-        .expect("segment map can't be retrieved");
-    Ok(match segmenter_map.get(model) {
-        Some(s) => s.clone(),
-        None => {
-            let s = Segmenter::new(Mode::Normal, get_dictionary(model, state.clone())?, None);
-            segmenter_map.insert(model.to_string(), s.clone());
-            s
-        }
-    })
+    let dictionary = load_dictionary(model)?;
+    let segmenter = Arc::new(Segmenter::new(Mode::Normal, dictionary, None));
+    segmenter_map.insert(model.to_string(), Arc::clone(&segmenter));
+    Ok(segmenter)
 }
