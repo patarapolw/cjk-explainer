@@ -637,9 +637,9 @@ version = "0.1.0"
 dependencies = [
  "lindera",
  "lindera-analysis",
- "lindera-ipadic-neologd",
  "lindera-jieba",
  "lindera-ko-dic",
+ "lindera-unidic",
  "serde",
  "serde_json",
  "tauri",
@@ -2750,9 +2750,9 @@ checksum = "acdfde95c0360c7214c7f97cbd52f293c41da5c7f215979b065b2b41772d199f"
 dependencies = [
  "anyhow",
  "lindera-dictionary",
- "lindera-ipadic-neologd",
  "lindera-jieba",
  "lindera-ko-dic",
+ "lindera-unidic",
  "log",
  "percent-encoding",
  "serde",
@@ -2814,15 +2814,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lindera-ipadic-neologd"
-version = "6.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c08320f5a0afc5fe45ab3c5dd93484992ddbbaad66c7031fc9a3453349c98b5b"
-dependencies = [
- "lindera-dictionary",
-]
-
-[[package]]
 name = "lindera-jieba"
 version = "6.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2836,6 +2827,15 @@ name = "lindera-ko-dic"
 version = "6.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bb09bbb8d3dbd6064f25831d06433a949f4057d8774361a7d69ca425e34bad7d"
+dependencies = [
+ "lindera-dictionary",
+]
+
+[[package]]
+name = "lindera-unidic"
+version = "6.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "902760af2698ee0c4aaaae7a06f1e959fdad0e575af9455ea7bf332eeb00f350"
 dependencies = [
  "lindera-dictionary",
 ]

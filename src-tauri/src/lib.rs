@@ -1,79 +1,19 @@
-use lindera::{dictionary::load_dictionary, mode::Mode, segmenter::Segmenter};
-use lindera_analysis::tokenizer::Tokenizer;
-use tauri::{Manager, State};
+use std::{collections::HashMap, sync::Mutex};
 
-use crate::error::AppError;
+use lindera::{dictionary::Dictionary, segmenter::Segmenter};
+use lindera_analysis::tokenizer::Tokenizer;
+use tauri::Manager;
 
 mod command;
 mod db;
 mod error;
+mod tokenize;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-async fn greet(name: &str) -> Result<String, String> {
-    Ok(format!("Hello, {}! You've been greeted from Rust!", name))
-}
-
-#[tauri::command]
-async fn segment_ja(
-    text: &str,
-    state: State<'_, AppState>,
-) -> Result<Vec<(String, Vec<String>)>, AppError> {
-    let mut out = vec![];
-
-    let mut tokens = state.tokenizer_ja.tokenize(text)?;
-    for token in tokens.iter_mut() {
-        out.push((
-            token.surface.to_string(),
-            token.details().iter().map(|s| s.to_string()).collect(),
-        ));
-    }
-
-    Ok(out)
-}
-
-#[tauri::command]
-async fn segment_zh(
-    text: &str,
-    state: State<'_, AppState>,
-) -> Result<Vec<(String, Vec<String>)>, AppError> {
-    let mut out = vec![];
-
-    let mut tokens = state.tokenizer_zh.tokenize(text)?;
-    for token in tokens.iter_mut() {
-        out.push((
-            token.surface.to_string(),
-            token.details().iter().map(|s| s.to_string()).collect(),
-        ));
-    }
-
-    Ok(out)
-}
-
-#[tauri::command]
-async fn segment_ko(
-    text: &str,
-    state: State<'_, AppState>,
-) -> Result<Vec<(String, Vec<String>)>, AppError> {
-    let mut out = vec![];
-
-    let mut tokens = state
-        .tokenizer_ko
-        .segment(std::borrow::Cow::Borrowed(text))?;
-    for token in tokens.iter_mut() {
-        out.push((
-            token.surface.to_string(),
-            token.details().iter().map(|s| s.to_string()).collect(),
-        ));
-    }
-
-    Ok(out)
-}
-
 struct AppState {
-    tokenizer_ja: Tokenizer,
-    tokenizer_zh: Tokenizer,
-    tokenizer_ko: Segmenter,
+    dictionary: Mutex<HashMap<String, Dictionary>>,
+    segmenter: Mutex<HashMap<String, Segmenter>>,
+    tokenizer: Mutex<HashMap<String, Tokenizer>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -88,33 +28,16 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let tokenizer_ja = {
-                let dictionary = load_dictionary("embedded://ipadic-neologd")?;
-                Tokenizer::new(Segmenter::new(Mode::Normal, dictionary, None))
-            };
-
-            let tokenizer_zh = {
-                let dictionary = load_dictionary("embedded://jieba")?;
-                Tokenizer::new(Segmenter::new(Mode::Normal, dictionary, None))
-            };
-
-            let tokenizer_ko = {
-                let dictionary = load_dictionary("embedded://ko-dic")?;
-                Segmenter::new(Mode::Normal, dictionary, None)
-            };
-
             app.manage(AppState {
-                tokenizer_ja,
-                tokenizer_zh,
-                tokenizer_ko,
+                dictionary: Mutex::new(HashMap::new()),
+                segmenter: Mutex::new(HashMap::new()),
+                tokenizer: Mutex::new(HashMap::new()),
             });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            greet,
-            segment_ja,
-            segment_zh,
-            segment_ko,
+            tokenize::segment,
+            tokenize::tokenize,
             command::import_yomitan_zip,
         ])
         .run(tauri::generate_context!())
