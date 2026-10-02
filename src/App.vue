@@ -123,15 +123,7 @@ import TextColorIcon from "@primeicons/vue/text-color";
 import CogIcon from "@primeicons/vue/cog";
 
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import { exists, BaseDirectory } from "@tauri-apps/plugin-fs";
-
-interface DownloadUrlProgress {
-  url: string;
-  filepath: string;
-  contentLength: number;
-  downloaded: number;
-}
+import { fetchLinderaModel } from "./util/tokenize";
 
 const isLoading = ref(false);
 const downloading = reactive({
@@ -158,45 +150,7 @@ onMounted(() => {
 
   mql.addEventListener("change", onMqlChange);
 
-  const model = "unidic";
-  const lindera_version = "6.2.0";
-  const filepath = `lindera-${model}-${lindera_version}.zip`;
-  exists(filepath, { baseDir: BaseDirectory.AppData })
-    .then(async (isExists) => {
-      if (!isExists) {
-        isLoading.value = true;
-
-        const unlisten = await listen<DownloadUrlProgress>(
-          "download-url-progress",
-          ({ payload }) => {
-            downloading.url = payload.url;
-            downloading.filepath = payload.filepath;
-            if (payload.contentLength) {
-              downloading.percentage = Math.round(
-                (100 * payload.downloaded) / payload.contentLength,
-              );
-            }
-          },
-        );
-
-        await invoke("download_url", {
-          url: `https://github.com/lindera/lindera/releases/download/v${lindera_version}/lindera-${model}-${lindera_version}.zip`,
-          filepath,
-        }).finally(unlisten);
-
-        await invoke("unzip", { filepath, outDir: "lindera" });
-      }
-    })
-    .then(async () => {
-      isLoading.value = false;
-      await invoke("segment", {
-        lang: "ja-JP",
-        text: "おはようございます。おはよう御座います",
-      }).then((r) => {
-        console.log(r);
-        console.log(JSON.stringify(r));
-      });
-    });
+  loadSegmenters();
 });
 
 onBeforeUnmount(() => {
@@ -204,6 +158,56 @@ onBeforeUnmount(() => {
     mql.removeEventListener("change", onMqlChange);
   }
 });
+
+async function loadSegmenters() {
+  await fetchLinderaModel({ model: "unidic" }, (payload) => {
+    isLoading.value = true;
+
+    downloading.url = payload.url;
+    downloading.filepath = payload.filepath;
+    if (payload.contentLength) {
+      downloading.percentage = Math.round(
+        (100 * payload.downloaded) / payload.contentLength,
+      );
+    }
+  });
+
+  isLoading.value = false;
+
+  await invoke("segment", {
+    lang: "ja-JP",
+    text: "おはようございます。おはよう御座います",
+  }).then(console.log);
+
+  await invoke("tokenize", {
+    lang: "ja-JP",
+    text: "おはようございます。おはよう御座います",
+  }).then(console.log);
+
+  await fetchLinderaModel({ model: "ko-dic" }, (payload) => {
+    isLoading.value = true;
+
+    downloading.url = payload.url;
+    downloading.filepath = payload.filepath;
+    if (payload.contentLength) {
+      downloading.percentage = Math.round(
+        (100 * payload.downloaded) / payload.contentLength,
+      );
+    }
+  });
+
+  isLoading.value = false;
+
+  await invoke("segment", {
+    lang: "ko-KR",
+    text: "저는 엄마가 밥을 먹은 지 안 먹은 지 몰라요",
+  }).then(console.log);
+
+  await invoke("tokenize", {
+    lang: "ko-KR",
+    text: "저는 엄마가 밥을 먹은 지 안 먹은 지 몰라요",
+  }).then(console.log);
+}
 </script>
 
 <style scoped>
