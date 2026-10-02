@@ -1,11 +1,5 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
-
-use lindera::segmenter::Segmenter;
-use lindera_analysis::tokenizer::Tokenizer;
 use tauri::Manager;
+use yomitan_parser::tokenize::TokenizerMapper;
 
 mod command;
 mod db;
@@ -15,8 +9,7 @@ mod tokenize;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 struct AppState {
-    segmenter: Mutex<HashMap<String, Arc<Segmenter>>>,
-    tokenizer: Mutex<HashMap<String, Arc<Tokenizer>>>,
+    tokenizer_mapper: TokenizerMapper,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -32,9 +25,10 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            let app_data_dir = app.handle().path().app_data_dir()?;
+
             app.manage(AppState {
-                segmenter: Mutex::new(HashMap::new()),
-                tokenizer: Mutex::new(HashMap::new()),
+                tokenizer_mapper: TokenizerMapper::new(app_data_dir.join("lindera")),
             });
             Ok(())
         })

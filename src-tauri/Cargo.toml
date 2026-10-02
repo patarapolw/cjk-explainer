@@ -29,5 +29,3 @@ tauri-plugin-fs = "2.6.0"
 tokio = { version = "1.53.1", features = ["io-util"] }
 zip = "8.6.0"
 yomitan-parser = { path = "../yomitan-parser" }
-lindera = "6.2.0"
-lindera-analysis = "6.2.0"

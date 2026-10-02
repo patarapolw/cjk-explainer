@@ -189,8 +189,8 @@ onMounted(() => {
     })
     .then(async () => {
       isLoading.value = false;
-      await invoke("tokenize", {
-        model,
+      await invoke("segment", {
+        lang: "ja-JP",
         text: "おはようございます。おはよう御座います",
       }).then((r) => {
         console.log(r);

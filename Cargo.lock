@@ -636,8 +636,6 @@ dependencies = [
 name = "cjk-explainer"
 version = "0.1.0"
 dependencies = [
- "lindera",
- "lindera-analysis",
  "serde",
  "serde_json",
  "tauri",

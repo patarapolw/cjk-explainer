@@ -1,6 +1,5 @@
 use std::{error::Error, fmt, sync::PoisonError};
 
-use lindera::error::LinderaError;
 use yomitan_parser::error::YomitanError;
 use zip::result::ZipError;
 
@@ -9,7 +8,6 @@ pub enum AppError {
     TauriError(tauri::Error),
     TauriReqwestError(tauri_plugin_http::reqwest::Error),
     YomitanError(YomitanError),
-    LinderaError(LinderaError),
     MutexPoisonedError(String),
     IOError(std::io::Error),
     ZipError(ZipError),
@@ -23,7 +21,6 @@ impl fmt::Display for AppError {
             Self::TauriError(e) => write!(f, "tauri::Error: {e}"),
             Self::YomitanError(e) => write!(f, "YomitanError: {e}"),
             Self::TauriReqwestError(e) => write!(f, "TauriReqwest: {e}"),
-            Self::LinderaError(e) => write!(f, "LinderaError: {e}"),
             Self::MutexPoisonedError(e) => write!(f, "MutexPoisoned: {e}"),
             Self::IOError(e) => write!(f, "IOError: {e}"),
             Self::ZipError(e) => write!(f, "ZipError: {e}"),
@@ -50,12 +47,6 @@ impl From<tauri_plugin_http::reqwest::Error> for AppError {
 impl From<YomitanError> for AppError {
     fn from(e: YomitanError) -> Self {
         Self::YomitanError(e)
-    }
-}
-
-impl From<LinderaError> for AppError {
-    fn from(e: LinderaError) -> Self {
-        Self::LinderaError(e)
     }
 }
 
