@@ -1,5 +1,9 @@
 use tauri::{AppHandle, Emitter, Manager};
-use yomitan_parser::{parser::YomitanParser, search::YomitanSearch};
+use yomitan_parser::{
+    parser::YomitanParser,
+    search::YomitanSearch,
+    tokenize::{Lang, TokenizerMapper},
+};
 
 use crate::error::AppError;
 
@@ -16,10 +20,15 @@ pub async fn import_yomitan_zip(app: AppHandle, path: &str) -> Result<(), AppErr
     })
     .await?;
 
+    let app_data_dir = app.path().app_data_dir()?;
+
+    let tok = TokenizerMapper::new(app_data_dir.join("lindera"));
+
     let _ = YomitanSearch::init(
         app_config_dir.join("yomitan.db"),
         vec!["yomi_1"],
-        "ja-JP",
+        Lang::Ja,
+        tok,
         |p| {
             app.emit("yomitan-init-progress", p).unwrap();
         },

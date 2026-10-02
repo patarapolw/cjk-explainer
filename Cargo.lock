@@ -7135,6 +7135,8 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "itertools",
+ "lindera",
+ "lindera-analysis",
  "serde",
  "serde_json",
  "sqlx",
