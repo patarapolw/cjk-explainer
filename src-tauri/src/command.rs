@@ -24,15 +24,11 @@ pub async fn import_yomitan_zip(app: AppHandle, path: &str) -> Result<(), AppErr
 
     let tok = TokenizerMapper::new(app_data_dir.join("lindera"));
 
-    let _ = YomitanSearch::init(
-        app_config_dir.join("yomitan.db"),
-        vec!["yomi_1"],
-        Lang::Ja,
-        tok,
-        |p| {
-            app.emit("yomitan-init-progress", p).unwrap();
-        },
-    )
+    let yomi = YomitanSearch::new(app_config_dir.join("yomitan.db"), vec!["yomi_1"]).await?;
+
+    yomi.import(vec!["yomi_1"], Some(Lang::Ja), &tok, |p| {
+        app.emit("yomitan-init-progress", p).unwrap();
+    })
     .await?;
 
     Ok(())
