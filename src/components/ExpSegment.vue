@@ -50,7 +50,7 @@ import Button from "primevue/button";
 
 import { LLMstream } from "../util/llm";
 import { markdownIt } from "../util/markdown";
-import { settingsState } from "../util/settings";
+import { explainerPrompt, settingsState } from "../util/settings";
 import { getExplanation, saveExplanation } from "../db/explainer";
 
 const { text, lang } = defineProps<{
@@ -85,7 +85,8 @@ async function doExplain() {
     messages: [
       {
         role: "system",
-        content: settingsState.explainerPrompt,
+        content:
+          settingsState.computed.explainerPrompt.value || explainerPrompt,
       },
       { role: "user", content: cleanedText },
     ],

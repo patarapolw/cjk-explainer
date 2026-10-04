@@ -7,8 +7,8 @@ export let supabase: ReturnType<typeof createClient> | null = null;
 let supabaseURL = "";
 
 export function createSupabaseClient() {
-  const url = settingsState.supabaseURL;
-  const publishableKey = settingsState.supabasePublishableKey;
+  const url = settingsState.computed.supabaseURL.value;
+  const publishableKey = settingsState.computed.supabasePublishableKey.value;
 
   if (supabase) {
     if (url === supabaseURL) return supabase;
@@ -25,8 +25,8 @@ export async function signIn() {
 
   if (!supabase) return null;
 
-  const email = settingsState.supabaseUsername;
-  const password = settingsState.supabasePassword;
+  const email = settingsState.computed.supabaseUsername.value;
+  const password = settingsState.computed.supabasePassword.value;
 
   if (!(email && password)) return null;
 

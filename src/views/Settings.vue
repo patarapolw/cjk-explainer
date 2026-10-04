@@ -4,12 +4,21 @@
       <legend>LLM</legend>
       <label class="row">
         <span class="label-header">DeepSeek API key: </span>
-        <InputText class="flex-grow" v-model="settingsState.deepseekApiKey" />
+        <InputText
+          class="flex-grow"
+          v-model="settingsState.state.deepseekApiKey"
+          :placeholder="settingsState.default.deepseekApiKey"
+        />
       </label>
 
       <fieldset class="row" disabled>
         <legend>Explainer prompt</legend>
-        <Textarea v-model="settingsState.explainerPrompt" fluid auto-resize />
+        <Textarea
+          v-model="settingsState.state.explainerPrompt"
+          :placeholder="settingsState.default.explainerPrompt"
+          fluid
+          auto-resize
+        />
       </fieldset>
     </fieldset>
 
@@ -17,24 +26,34 @@
       <legend>Supabase</legend>
       <label class="row">
         <span class="label-header">Server URL: </span>
-        <InputText class="flex-grow" v-model="settingsState.supabaseURL" />
+        <InputText
+          class="flex-grow"
+          v-model="settingsState.state.supabaseURL"
+          :placeholder="settingsState.default.supabaseURL"
+        />
       </label>
       <label class="row">
         <span class="label-header">Publishable key: </span>
         <InputText
           class="flex-grow"
-          v-model="settingsState.supabasePublishableKey"
+          v-model="settingsState.state.supabasePublishableKey"
+          :placeholder="settingsState.default.supabasePublishableKey"
         />
       </label>
       <label class="row">
         <span class="label-header">Username: </span>
-        <InputText class="flex-grow" v-model="settingsState.supabaseUsername" />
+        <InputText
+          class="flex-grow"
+          v-model="settingsState.state.supabaseUsername"
+          :placeholder="settingsState.default.supabaseUsername"
+        />
       </label>
       <label class="row">
         <span class="label-header">Password: </span>
         <InputPassword
           class="flex-grow"
-          v-model="settingsState.supabasePassword"
+          v-model="settingsState.state.supabasePassword"
+          :placeholder="settingsState.default.supabasePassword"
         />
       </label>
     </fieldset>
@@ -47,14 +66,14 @@ import InputPassword from "primevue/inputpassword";
 import Textarea from "primevue/textarea";
 
 import { onBeforeUnmount, onMounted } from "vue";
-import { loadSettings, saveSettings, settingsState } from "../util/settings";
+import { settingsState } from "../util/settings";
 
 onMounted(() => {
-  loadSettings();
+  settingsState.load();
 });
 
 onBeforeUnmount(() => {
-  saveSettings();
+  settingsState.save();
 });
 </script>
 

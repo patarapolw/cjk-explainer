@@ -28,12 +28,15 @@ export async function* LLMstream(body: {
     content: string;
   }[];
 }) {
+  let apiKey: string = settingsState.computed.deepseekApiKey.value || "";
+  if (!apiKey) return;
+
   let endpoint = "https://api.deepseek.com/chat/completions";
 
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${settingsState.deepseekApiKey}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
