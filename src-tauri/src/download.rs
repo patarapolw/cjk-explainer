@@ -75,7 +75,7 @@ fn unzip_sync(filepath: PathBuf, out_dir: PathBuf) -> zip::result::ZipResult<()>
     let mut archive = ZipArchive::new(file)?;
     archive.extract(&out_dir)?;
 
-    println!("Unzip successfully {:?} to {:?}", &filepath, &out_dir);
+    println!("Unzipped {:?} to {:?}", &filepath, &out_dir);
     Ok(())
 }
 
@@ -155,7 +155,7 @@ where
         }
 
         println!(
-            "File downloaded successfully {} MB to {:?}",
+            "File downloaded {} MB to {:?}",
             content_length >> 20,
             &file_pf
         );

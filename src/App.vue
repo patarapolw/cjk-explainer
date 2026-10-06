@@ -81,24 +81,16 @@
       <RouterView />
     </SidebarMain>
   </SidebarLayout>
-  <Dialog v-model:visible="isLoading" modal :closable="false">
+  <Dialog :visible="toBeLoaded.length > 0" modal :closable="false">
     <div class="modal-content">
-      <p>
-        <small>
-          Downloading {{ downloading.filepath }} from {{ downloading.url }}
-        </small>
-      </p>
-      <ProgressBar
-        v-if="downloading.percentage"
-        :value="downloading.percentage"
-        :show-value="false"
-      />
+      <Downloading ref="loading_1" v-bind="toBeLoaded[0]" />
+      <Downloading v-for="(d, i) in toBeLoaded.slice(1)" :key="i" v-bind="d" />
     </div>
   </Dialog>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef } from "vue";
 
 import SidebarLayout from "primevue/sidebarlayout";
 import SidebarBackdrop from "primevue/sidebarbackdrop";
@@ -116,21 +108,18 @@ import SidebarMenu from "primevue/sidebarmenu";
 import SidebarMenuItem from "primevue/sidebarmenuitem";
 import SidebarMenuButton from "primevue/sidebarmenubutton";
 import Dialog from "primevue/dialog";
-import ProgressBar from "primevue/progressbar";
 
 import SidebarIcon from "@primeicons/vue/sidebar";
 import TextColorIcon from "@primeicons/vue/text-color";
 import CogIcon from "@primeicons/vue/cog";
 
 import { invoke } from "@tauri-apps/api/core";
-import { fetchLinderaModel } from "./util/tokenize";
 
-const isLoading = ref(false);
-const downloading = reactive({
-  url: "",
-  filepath: "",
-  percentage: 0,
-});
+import { makeLinderaDownloadList } from "./util/tokenize";
+import Downloading, { IDownloadingProps } from "./components/Downloading.vue";
+
+const toBeLoaded = ref<IDownloadingProps[]>([]);
+const elLoading_1 = useTemplateRef("loading_1");
 
 const isMobile = ref(false);
 const navOpen = ref(false);
@@ -150,7 +139,14 @@ onMounted(() => {
 
   mql.addEventListener("change", onMqlChange);
 
-  loadSegmenters();
+  toBeLoaded.value = [
+    ...toBeLoaded.value,
+    ...makeLinderaDownloadList(["unidic", "ko-dic", "cc-cedict"]),
+  ];
+
+  loadAll().then(async () => {
+    await loadSegmenters();
+  });
 });
 
 onBeforeUnmount(() => {
@@ -159,21 +155,31 @@ onBeforeUnmount(() => {
   }
 });
 
-async function loadSegmenters() {
-  await fetchLinderaModel({ model: "unidic" }, (payload) => {
-    isLoading.value = true;
+async function loadAll() {
+  while (toBeLoaded.value) {
+    const remaining = await new Promise<number>((resolve, reject) => {
+      nextTick(() => {
+        if (elLoading_1.value) {
+          elLoading_1.value
+            .start()
+            .then(() => {
+              toBeLoaded.value = toBeLoaded.value.slice(1);
+              resolve(toBeLoaded.value.length);
+            })
+            .catch(reject);
+        } else {
+          resolve(0);
+        }
+      });
+    });
 
-    downloading.url = payload.url;
-    downloading.filepath = payload.filepath;
-    if (payload.contentLength) {
-      downloading.percentage = Math.round(
-        (100 * payload.downloaded) / payload.contentLength,
-      );
+    if (remaining <= 0) {
+      break;
     }
-  });
+  }
+}
 
-  isLoading.value = false;
-
+async function loadSegmenters() {
   await invoke("segment", {
     lang: "ja-JP",
     text: "おはようございます。おはよう御座います",
@@ -183,20 +189,6 @@ async function loadSegmenters() {
     lang: "ja-JP",
     text: "おはようございます。おはよう御座います",
   }).then(console.log);
-
-  await fetchLinderaModel({ model: "ko-dic" }, (payload) => {
-    isLoading.value = true;
-
-    downloading.url = payload.url;
-    downloading.filepath = payload.filepath;
-    if (payload.contentLength) {
-      downloading.percentage = Math.round(
-        (100 * payload.downloaded) / payload.contentLength,
-      );
-    }
-  });
-
-  isLoading.value = false;
 
   await invoke("segment", {
     lang: "ko-KR",
