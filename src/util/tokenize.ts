@@ -1,6 +1,6 @@
-import type { IDownloadingProps } from "../components/Downloading.vue";
+import { DownloadingProps } from "./loading";
 
-export function makeLinderaDownloadList(models: string[]): IDownloadingProps[] {
+export function makeLinderaDownloadList(models: string[]): DownloadingProps[] {
   const version = "6.2.0";
 
   return models.map((model) => {

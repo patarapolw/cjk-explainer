@@ -11,7 +11,10 @@ pub async fn segment(
 ) -> Result<Vec<(String, Vec<String>)>, AppError> {
     Ok(state
         .tokenizer_mapper
-        .segment(Lang::from(lang)?, text)
+        .segment(
+            Lang::from(lang).ok_or(format!("unsupported_language: {}", lang))?,
+            text,
+        )
         .await?)
 }
 
@@ -23,6 +26,9 @@ pub async fn tokenize(
 ) -> Result<Vec<String>, AppError> {
     Ok(state
         .tokenizer_mapper
-        .tokenize(Lang::from(lang)?, text)
+        .tokenize(
+            Lang::from(lang).ok_or(format!("unsupported_language: {}", lang))?,
+            text,
+        )
         .await?)
 }

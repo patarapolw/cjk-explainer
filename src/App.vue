@@ -115,10 +115,11 @@ import CogIcon from "@primeicons/vue/cog";
 
 import { invoke } from "@tauri-apps/api/core";
 
-import { makeLinderaDownloadList } from "./util/tokenize";
-import Downloading, { IDownloadingProps } from "./components/Downloading.vue";
+import Downloading from "./components/Downloading.vue";
 
-const toBeLoaded = ref<IDownloadingProps[]>([]);
+import { makeLinderaDownloadList } from "./util/tokenize";
+import { toBeLoaded } from "./util/loading.ts";
+
 const elLoading_1 = useTemplateRef("loading_1");
 
 const isMobile = ref(false);

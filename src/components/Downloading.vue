@@ -27,22 +27,16 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { BaseDirectory, exists } from "@tauri-apps/plugin-fs";
 
-import { DownloadUrlProgress } from "../util/download";
+import { DownloadingProps, DownloadUrlProgress } from "../util/loading";
 
-export interface IDownloadingProps {
-  filepath: string;
-  zipFilename?: string;
-  zipOutdir?: string;
-  url: string;
-}
+const props = defineProps<DownloadingProps>();
 
-const props = defineProps<IDownloadingProps>();
 defineExpose({
   start,
 });
 
 const emit = defineEmits<{
-  (event: "done", result: boolean): void;
+  (event: "downloaded", result: boolean): void;
 }>();
 
 const isStarted = ref(false);
@@ -63,54 +57,62 @@ function formatFileSize(n: number) {
   let i = 0;
 
   while (i++ < units.length) {
-    if (n < 100) break;
+    if (n < 1024) break;
     n /= 1024;
   }
   return `${n.toPrecision(3)} ${units[i - 1]}`;
 }
 
-const unlistenFn = ref<UnlistenFn>();
+const unlisteners = ref<UnlistenFn[]>([]);
 
 async function start() {
   isStarted.value = true;
-  let result = false;
 
-  if (await exists(props.filepath, { baseDir: BaseDirectory.AppData })) {
-    emit("done", false);
-    return false;
-  }
+  // Downloading block
+  let isDownloaded = false;
 
-  unlistenFn.value = await listen<DownloadUrlProgress>(
-    "download-url-progress",
-    ({ payload }) => {
-      Object.assign(progress, payload);
-    },
-  );
+  const { url, filepath, zipOutdir, zipFilename, yomitan } = props;
+  const outDir = zipOutdir || filepath;
 
-  try {
+  if (!(await exists(filepath, { baseDir: BaseDirectory.AppData }))) {
+    unlisteners.value = [
+      ...unlisteners.value,
+      await listen<DownloadUrlProgress>(
+        "download-url-progress",
+        ({ payload }) => {
+          Object.assign(progress, payload);
+        },
+      ),
+    ];
+
     if (props.zipFilename) {
-      result = await invoke<boolean>("download_and_unzip", {
-        url: props.url,
-        zipFilename: props.zipFilename,
-        outDir: props.zipOutdir || props.filepath,
+      isDownloaded = await invoke<boolean>("download_and_unzip", {
+        url,
+        zipFilename,
+        outDir,
+        isSqlite: !!yomitan,
       });
-      emit("done", result);
     } else {
-      result = await invoke<boolean>("download_url", {
-        url: props.url,
-        filepath: props.filepath,
+      isDownloaded = await invoke<boolean>("download_url", {
+        url,
+        filepath,
       });
-      emit("done", result);
     }
-  } finally {
-    unlistenFn.value?.();
   }
 
-  return result;
+  emit("downloaded", isDownloaded);
+
+  // parsing block
+  if (yomitan) {
+    await invoke("yomitan_parse_dir", {
+      rootDir: outDir,
+      // yomitan,
+    });
+  }
 }
 
 onBeforeUnmount(() => {
-  unlistenFn.value?.();
+  unlisteners.value.map((u) => u());
 });
 </script>
 

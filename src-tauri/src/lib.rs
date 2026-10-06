@@ -1,11 +1,11 @@
 use tauri::Manager;
 use yomitan_parser::tokenize::TokenizerMapper;
 
-mod command;
 mod db;
 mod download;
 mod error;
 mod tokenize;
+mod yomitan;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 struct AppState {
@@ -38,7 +38,9 @@ pub fn run() {
             download::download_and_unzip,
             tokenize::segment,
             tokenize::tokenize,
-            command::import_yomitan_zip,
+            yomitan::yomitan_parse_zip,
+            yomitan::yomitan_parse_dir,
+            yomitan::yomitan_import,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

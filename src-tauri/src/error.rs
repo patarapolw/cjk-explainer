@@ -74,6 +74,12 @@ impl From<tokio::task::JoinError> for AppError {
     }
 }
 
+impl From<String> for AppError {
+    fn from(e: String) -> Self {
+        Self::Error(e)
+    }
+}
+
 impl serde::Serialize for AppError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

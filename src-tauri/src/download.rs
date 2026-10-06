@@ -36,9 +36,18 @@ pub async fn download_and_unzip(
     url: &str,
     zip_filename: Option<&str>,
     out_dir: &str,
+    is_sqlite: Option<bool>,
 ) -> Result<bool, AppError> {
-    let app_data_dir = app.path().app_data_dir()?;
-    let out_dir = app_data_dir.join(out_dir);
+    let out_dir = is_sqlite
+        .and_then(|b| {
+            if b {
+                Some(app.path().config_dir())
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| app.path().app_data_dir())?
+        .join(out_dir);
 
     let app_cache_dir = app.path().app_cache_dir()?;
     let zip_filename = zip_filename.or_else(|| {
