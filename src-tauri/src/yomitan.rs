@@ -1,5 +1,6 @@
 use tauri::{AppHandle, Emitter, Manager};
 use yomitan_parser::{
+    error::YomitanError,
     parser::YomitanParser,
     search::YomitanSearch,
     tokenize::{Lang, TokenizerMapper},
@@ -67,7 +68,9 @@ pub async fn yomitan_import(
     let yomi = YomitanSearch::new(app_config_dir.join("yomitan.db"), dict_paths.clone()).await?;
 
     let lang = match lang {
-        Some(x) => Some(Lang::from(x).ok_or(format!("unsupported_language: {}", x))?),
+        Some(x) => {
+            Some(Lang::from(x).ok_or(YomitanError::UnsupportedLanguageError(x.to_string()))?)
+        }
         None => None,
     };
 

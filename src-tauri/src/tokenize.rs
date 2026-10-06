@@ -1,5 +1,5 @@
 use tauri::State;
-use yomitan_parser::tokenize::Lang;
+use yomitan_parser::{error::YomitanError, tokenize::Lang};
 
 use crate::{AppState, error::AppError};
 
@@ -12,7 +12,7 @@ pub async fn segment(
     Ok(state
         .tokenizer_mapper
         .segment(
-            Lang::from(lang).ok_or(format!("unsupported_language: {}", lang))?,
+            Lang::from(lang).ok_or(YomitanError::UnsupportedLanguageError(lang.to_string()))?,
             text,
         )
         .await?)
@@ -27,7 +27,7 @@ pub async fn tokenize(
     Ok(state
         .tokenizer_mapper
         .tokenize(
-            Lang::from(lang).ok_or(format!("unsupported_language: {}", lang))?,
+            Lang::from(lang).ok_or(YomitanError::UnsupportedLanguageError(lang.to_string()))?,
             text,
         )
         .await?)

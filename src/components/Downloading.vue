@@ -108,6 +108,9 @@ async function start() {
       rootDir: outDir,
       // yomitan,
     });
+    await invoke("yomitan_import", {
+      dictPaths: [outDir],
+    });
   }
 }
 

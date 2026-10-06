@@ -41,7 +41,7 @@ pub async fn download_and_unzip(
     let out_dir = is_sqlite
         .and_then(|b| {
             if b {
-                Some(app.path().config_dir())
+                Some(app.path().app_config_dir())
             } else {
                 None
             }
