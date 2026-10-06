@@ -18,28 +18,23 @@ export async function fetchLinderaModel(
     return;
   }
 
-  const downloadZipFilename = `lindera-${model}-${version}.zip`;
-  if (
-    !(await exists(downloadZipFilename, { baseDir: BaseDirectory.AppData }))
-  ) {
-    const url = `https://github.com/lindera/lindera/releases/download/v${version}/${downloadZipFilename}`;
-    callback({
-      url,
-      filepath: downloadZipFilename,
-      contentLength: 0,
-      downloaded: 0,
-    });
+  const zipFilename = `lindera-${model}-${version}.zip`;
+  const url = `https://github.com/lindera/lindera/releases/download/v${version}/${zipFilename}`;
+  callback({
+    url,
+    filepath: zipFilename,
+    contentLength: 0,
+    downloaded: 0,
+  });
 
-    const unlisten = await listen<DownloadUrlProgress>(
-      "download-url-progress",
-      ({ payload }) => callback(payload),
-    );
+  const unlisten = await listen<DownloadUrlProgress>(
+    "download-url-progress",
+    ({ payload }) => callback(payload),
+  );
 
-    await invoke("download_url", {
-      url,
-      filepath: downloadZipFilename,
-    }).finally(unlisten);
-  }
-
-  await invoke("unzip", { filepath: downloadZipFilename, outDir: "lindera" });
+  await invoke("download_and_unzip", {
+    url,
+    zipFilename,
+    outDir: "lindera",
+  }).finally(unlisten);
 }

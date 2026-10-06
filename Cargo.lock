@@ -646,6 +646,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-sql",
  "tokio",
+ "uuid",
  "yomitan-parser",
  "zip",
 ]

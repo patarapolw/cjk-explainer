@@ -35,6 +35,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             download::download_url,
             download::unzip,
+            download::download_and_unzip,
             tokenize::segment,
             tokenize::tokenize,
             command::import_yomitan_zip,

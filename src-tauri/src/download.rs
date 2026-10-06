@@ -4,6 +4,7 @@ use tauri_plugin_http::reqwest;
 use tokio::{fs::remove_file, io::AsyncWriteExt};
 
 use serde::Serialize;
+use uuid::Uuid;
 use zip::ZipArchive;
 
 use crate::error::AppError;
@@ -29,10 +30,52 @@ pub async fn unzip(app: AppHandle, filepath: &str, out_dir: &str) -> Result<(), 
     Ok(())
 }
 
+#[tauri::command]
+pub async fn download_and_unzip(
+    app: AppHandle,
+    url: &str,
+    zip_filename: Option<&str>,
+    out_dir: &str,
+) -> Result<bool, AppError> {
+    let app_data_dir = app.path().app_data_dir()?;
+    let out_dir = app_data_dir.join(out_dir);
+
+    let app_cache_dir = app.path().app_cache_dir()?;
+    let zip_filename = zip_filename.or_else(|| {
+        if let Some((_, filename)) = url.rsplit_once('/') {
+            return Some(filename);
+        }
+        None
+    });
+
+    let zip_filename = match zip_filename {
+        Some(z) => z,
+        None => &format!("{:?}.zip", Uuid::new_v4()),
+    };
+
+    let zip_filepath = app_cache_dir.join(zip_filename);
+
+    if !zip_filepath.exists() {
+        let r = download_url_local(url, &app_cache_dir, zip_filename, |progress| {
+            app.emit("download-url-progress", progress).unwrap();
+        })
+        .await?;
+        if !r {
+            return Ok(false);
+        }
+    }
+
+    tokio::task::spawn_blocking(move || unzip_sync(zip_filepath, out_dir)).await??;
+
+    Ok(true)
+}
+
 fn unzip_sync(filepath: PathBuf, out_dir: PathBuf) -> zip::result::ZipResult<()> {
-    let file = std::fs::File::open(filepath)?; // Use sync version in thread
+    let file = std::fs::File::open(&filepath)?; // Use sync version in thread
     let mut archive = ZipArchive::new(file)?;
-    archive.extract(out_dir)?;
+    archive.extract(&out_dir)?;
+
+    println!("Unzip successfully {:?} to {:?}", &filepath, &out_dir);
     Ok(())
 }
 
@@ -47,17 +90,17 @@ struct DownloadProgress {
 
 async fn download_url_local<Callback>(
     url: &str,
-    data_dir: &PathBuf,
-    filepath: &str,
+    out_dir: &PathBuf,
+    filename: &str,
     callback: Callback,
 ) -> Result<bool, AppError>
 where
     Callback: Fn(DownloadProgress),
 {
     let client = reqwest::Client::new();
-    let file_pf = data_dir.join(filepath);
+    let file_pf = out_dir.join(filename);
 
-    let temp_pf = data_dir.join(format!("{}.dl-tmp", filepath));
+    let temp_pf = out_dir.join(format!("{}.dl-tmp", filename));
     let temp_path = temp_pf.as_path();
     // Check existing partial download size
     let existing_size = tokio::fs::metadata(temp_path)
@@ -94,7 +137,7 @@ where
 
             callback(DownloadProgress {
                 url: url.to_owned(),
-                filepath: filepath.to_owned(),
+                filepath: filename.to_owned(),
                 content_length,
                 downloaded,
             });
@@ -111,7 +154,11 @@ where
             )));
         }
 
-        println!("File downloaded successfully to {:?}", &file_pf);
+        println!(
+            "File downloaded successfully {} MB to {:?}",
+            content_length >> 20,
+            &file_pf
+        );
     } else {
         eprintln!("Failed to download file: {:?}", response.status());
     }

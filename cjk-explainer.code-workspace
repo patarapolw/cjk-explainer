@@ -9,6 +9,9 @@
 		{
 			"path": "yomitan-parser"
 		},
+		{
+			"path": "src-tauri"
+		},
 	],
 	"settings": {
 		"editor.tabSize": 2,
