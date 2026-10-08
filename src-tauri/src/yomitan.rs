@@ -77,10 +77,12 @@ pub async fn yomitan_import(
     let app_data_dir = app.path().app_data_dir()?;
     let tok = TokenizerMapper::new(app_data_dir.join("lindera"));
 
-    yomi.import(dict_paths, lang, &tok, |p| {
-        app.emit("yomitan-init-progress", p).unwrap();
-    })
-    .await?;
+    for dict in dict_paths {
+        yomi.import(dict, lang, &tok, |p| {
+            app.emit("yomitan-init-progress", p).unwrap();
+        })
+        .await?;
+    }
 
     Ok(())
 }
