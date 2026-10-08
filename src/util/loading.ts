@@ -1,11 +1,14 @@
 import { ref } from "vue";
 
 export interface DownloadingProps {
-  filepath: string;
-  zipFilename?: string;
-  zipOutdir?: string;
+  filename: string;
+  outDir?: string;
   url: string;
   yomitan?: {}; // TODO: yomitan user metadata
+}
+
+export interface YomitanImportProps {
+  dictPaths: string[];
 }
 
 export interface DownloadUrlProgress {
@@ -15,4 +18,9 @@ export interface DownloadUrlProgress {
   downloaded: number;
 }
 
-export const toBeLoaded = ref<DownloadingProps[]>([]);
+export interface UnzipProgress {
+  filename: string;
+  outDir: string;
+}
+
+export const toBeLoaded = ref<(DownloadingProps | YomitanImportProps)[]>([]);

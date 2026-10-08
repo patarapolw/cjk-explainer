@@ -1,12 +1,9 @@
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager, State};
 use yomitan_parser::{
-    error::YomitanError,
-    parser::YomitanParser,
-    search::YomitanSearch,
-    tokenize::{Lang, TokenizerMapper},
+    error::YomitanError, parser::YomitanParser, search::YomitanSearch, tokenize::Lang,
 };
 
-use crate::error::AppError;
+use crate::{AppState, error::AppError};
 
 #[tauri::command]
 pub async fn yomitan_parse_zip(
@@ -60,12 +57,13 @@ pub async fn yomitan_import(
     app: AppHandle,
     dict_paths: Vec<&str>,
     lang: Option<&str>,
+    state: State<'_, AppState>,
 ) -> Result<(), AppError> {
     // adapted from https://github.com/tauri-apps/plugins-workspace/blob/v2/plugins/sql/src/wrapper.rs#91
     // plugin says app_config_dir()
     let app_config_dir = app.path().app_config_dir()?;
 
-    let yomi = YomitanSearch::new(app_config_dir.join("yomitan.db"), dict_paths.clone()).await?;
+    let yomi = YomitanSearch::new(app_config_dir.join("search.db"), dict_paths.clone()).await?;
 
     let lang = match lang {
         Some(x) => {
@@ -74,11 +72,8 @@ pub async fn yomitan_import(
         None => None,
     };
 
-    let app_data_dir = app.path().app_data_dir()?;
-    let tok = TokenizerMapper::new(app_data_dir.join("lindera"));
-
     for dict in dict_paths {
-        yomi.import(dict, lang, &tok, |p| {
+        yomi.import(dict, lang, &state.tokenizer_mapper, |p| {
             app.emit("yomitan-init-progress", p).unwrap();
         })
         .await?;

@@ -4,6 +4,7 @@ use yomitan_parser::tokenize::TokenizerMapper;
 mod db;
 mod download;
 mod error;
+mod shared;
 mod tokenize;
 mod yomitan;
 

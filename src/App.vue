@@ -83,8 +83,10 @@
   </SidebarLayout>
   <Dialog :visible="toBeLoaded.length > 0" modal :closable="false">
     <div class="modal-content">
-      <Downloading ref="loading_1" v-bind="toBeLoaded[0]" />
-      <Downloading v-for="(d, i) in toBeLoaded.slice(1)" :key="i" v-bind="d" />
+      <template v-for="(d, i) in toBeLoaded" :key="i">
+        <YomitanBuilder ref="loading_1" v-if="'dictPaths' in d" v-bind="d" />
+        <Downloading ref="loading_1" v-else v-bind="d" />
+      </template>
     </div>
   </Dialog>
 </template>
@@ -116,9 +118,11 @@ import CogIcon from "@primeicons/vue/cog";
 import { invoke } from "@tauri-apps/api/core";
 
 import Downloading from "./components/Downloading.vue";
+import YomitanBuilder from "./components/YomitanBuilder.vue";
 
 import { makeLinderaDownloadList } from "./util/tokenize";
 import { toBeLoaded } from "./util/loading.ts";
+import { standardDicts } from "./util/dicts.ts";
 
 const elLoading_1 = useTemplateRef("loading_1");
 
@@ -140,11 +144,6 @@ onMounted(() => {
 
   mql.addEventListener("change", onMqlChange);
 
-  toBeLoaded.value = [
-    ...toBeLoaded.value,
-    ...makeLinderaDownloadList(["unidic", "ko-dic", "cc-cedict"]),
-  ];
-
   loadAll().then(async () => {
     await loadSegmenters();
   });
@@ -157,11 +156,21 @@ onBeforeUnmount(() => {
 });
 
 async function loadAll() {
+  const dicts = await standardDicts();
+
+  toBeLoaded.value = [
+    ...toBeLoaded.value,
+    ...(await makeLinderaDownloadList(["unidic", "ko-dic", "cc-cedict"])),
+    ...dicts.filter((d) => d.filename),
+    { dictPaths: dicts.map((d) => d.outDir!).filter((d) => d) },
+  ];
+
   while (toBeLoaded.value) {
     const remaining = await new Promise<number>((resolve, reject) => {
       nextTick(() => {
-        if (elLoading_1.value) {
-          elLoading_1.value
+        const firstLoader = elLoading_1.value?.[0];
+        if (firstLoader) {
+          firstLoader
             .start()
             .then(() => {
               toBeLoaded.value = toBeLoaded.value.slice(1);

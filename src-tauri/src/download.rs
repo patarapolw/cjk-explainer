@@ -4,28 +4,42 @@ use tauri_plugin_http::reqwest;
 use tokio::{fs::remove_file, io::AsyncWriteExt};
 
 use serde::Serialize;
-use uuid::Uuid;
 use zip::ZipArchive;
 
 use crate::error::AppError;
 
 #[tauri::command]
-pub async fn download_url(app: AppHandle, url: &str, filepath: &str) -> Result<bool, AppError> {
+pub async fn download_url(app: AppHandle, url: &str, filename: &str) -> Result<bool, AppError> {
     let app_data_dir = app.path().app_data_dir()?;
 
-    download_url_local(url, &app_data_dir, filepath, |progress| {
+    download_url_local(url, &app_data_dir, filename, |progress| {
         app.emit("download-url-progress", progress).unwrap();
     })
     .await
 }
 
-#[tauri::command]
-pub async fn unzip(app: AppHandle, filepath: &str, out_dir: &str) -> Result<(), AppError> {
-    let app_data_dir = app.path().app_data_dir()?;
-    let filepath = app_data_dir.join(filepath);
-    let out_dir = app_data_dir.join(out_dir);
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct UnzipProgress {
+    filename: String,
+    out_dir: String,
+}
 
-    tokio::task::spawn_blocking(move || unzip_sync(filepath, out_dir)).await??;
+#[tauri::command]
+pub async fn unzip(app: AppHandle, filename: &str, out_dir: &str) -> Result<(), AppError> {
+    let app_data_dir = app.path().app_data_dir()?;
+    let filepath = app_data_dir.join(filename);
+    let out_path = app_data_dir.join(out_dir);
+
+    app.emit(
+        "unzip-progress",
+        UnzipProgress {
+            filename: filename.to_string(),
+            out_dir: out_dir.to_string(),
+        },
+    )?;
+
+    tokio::task::spawn_blocking(move || unzip_sync(filepath, out_path)).await??;
 
     Ok(())
 }
@@ -34,11 +48,12 @@ pub async fn unzip(app: AppHandle, filepath: &str, out_dir: &str) -> Result<(), 
 pub async fn download_and_unzip(
     app: AppHandle,
     url: &str,
-    zip_filename: Option<&str>,
+    filename: &str,
     out_dir: &str,
     is_sqlite: Option<bool>,
 ) -> Result<bool, AppError> {
-    let out_dir = is_sqlite
+    println!("{url}");
+    let out_path = is_sqlite
         .and_then(|b| {
             if b {
                 Some(app.path().app_config_dir())
@@ -50,22 +65,10 @@ pub async fn download_and_unzip(
         .join(out_dir);
 
     let app_cache_dir = app.path().app_cache_dir()?;
-    let zip_filename = zip_filename.or_else(|| {
-        if let Some((_, filename)) = url.rsplit_once('/') {
-            return Some(filename);
-        }
-        None
-    });
-
-    let zip_filename = match zip_filename {
-        Some(z) => z,
-        None => &format!("{:?}.zip", Uuid::new_v4()),
-    };
-
-    let zip_filepath = app_cache_dir.join(zip_filename);
+    let zip_filepath = app_cache_dir.join(filename);
 
     if !zip_filepath.exists() {
-        let r = download_url_local(url, &app_cache_dir, zip_filename, |progress| {
+        let r = download_url_local(url, &app_cache_dir, filename, |progress| {
             app.emit("download-url-progress", progress).unwrap();
         })
         .await?;
@@ -74,7 +77,15 @@ pub async fn download_and_unzip(
         }
     }
 
-    tokio::task::spawn_blocking(move || unzip_sync(zip_filepath, out_dir)).await??;
+    app.emit(
+        "unzip-progress",
+        UnzipProgress {
+            filename: filename.to_string(),
+            out_dir: out_dir.to_string(),
+        },
+    )?;
+
+    tokio::task::spawn_blocking(move || unzip_sync(zip_filepath, out_path)).await??;
 
     Ok(true)
 }

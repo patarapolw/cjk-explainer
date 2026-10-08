@@ -1,17 +1,14 @@
 <template>
   <div>
     <p>
-      {{ isStarted ? "Downloading" : "Waiting to download" }}
-      {{ $props.zipFilename || $props.filepath }} from
-      {{ progress.url || $props.url }}
-      <span v-if="progress.contentLength" style="float: right">
-        ({{ formatFileSize(progress.downloaded) }} /
-        {{ formatFileSize(progress.contentLength) }})
+      {{ message }}
+      <span v-if="progressMessage" style="float: right">
+        ({{ progressMessage }})
       </span>
     </p>
     <ProgressBar
       v-if="isStarted"
-      :mode="progress.contentLength ? 'determinate' : 'indeterminate'"
+      :mode="progressMessage ? 'determinate' : 'indeterminate'"
       :value="percentage"
       :show-value="false"
     />
@@ -19,15 +16,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref } from "vue";
+import { onBeforeUnmount, ref } from "vue";
 
 import ProgressBar from "primevue/progressbar";
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
-import { BaseDirectory, exists } from "@tauri-apps/plugin-fs";
 
-import { DownloadingProps, DownloadUrlProgress } from "../util/loading";
+import {
+  DownloadingProps,
+  DownloadUrlProgress,
+  UnzipProgress,
+} from "../util/loading";
+import {
+  YomitanImportProgress,
+  YomitanSearchInitProgress,
+} from "../util/dicts";
 
 const props = defineProps<DownloadingProps>();
 
@@ -35,22 +39,10 @@ defineExpose({
   start,
 });
 
-const emit = defineEmits<{
-  (event: "downloaded", result: boolean): void;
-}>();
-
 const isStarted = ref(false);
-
-const progress = reactive<DownloadUrlProgress>({
-  url: "",
-  filepath: "",
-  downloaded: 0,
-  contentLength: 0,
-});
-
-const percentage = computed(() =>
-  Math.round((100 * progress.downloaded) / progress.contentLength),
-);
+const message = ref(`Waiting to download ${props.filename} from ${props.url}`);
+const progressMessage = ref("");
+const percentage = ref(0);
 
 function formatFileSize(n: number) {
   const units = ["bytes", "KB", "MB"];
@@ -68,42 +60,70 @@ const unlisteners = ref<UnlistenFn[]>([]);
 async function start() {
   isStarted.value = true;
 
-  // Downloading block
+  // **Downloading block
   let isDownloaded = false;
 
-  const { url, filepath, zipOutdir, zipFilename, yomitan } = props;
-  const outDir = zipOutdir || filepath;
+  const { url, filename, outDir, yomitan } = props;
 
-  if (!(await exists(filepath, { baseDir: BaseDirectory.AppData }))) {
+  unlisteners.value = [
+    ...unlisteners.value,
+    await listen<DownloadUrlProgress>(
+      "download-url-progress",
+      ({ payload }) => {
+        message.value = `Downloading ${payload.filepath} from ${payload.url}`;
+        progressMessage.value = `${formatFileSize(payload.downloaded)} / ${formatFileSize(payload.contentLength)}`;
+        percentage.value = Math.round(
+          (100 * payload.downloaded) / payload.contentLength,
+        );
+      },
+    ),
+    await listen<UnzipProgress>("unzip-progress", ({ payload }) => {
+      message.value = `Unzipping ${payload.filename} to ${payload.outDir}/`;
+      progressMessage.value = "";
+      percentage.value = 0;
+    }),
+  ];
+
+  if (props.outDir) {
+    isDownloaded = await invoke<boolean>("download_and_unzip", {
+      url,
+      filename,
+      outDir,
+      isSqlite: !!yomitan,
+    });
+  } else {
+    isDownloaded = await invoke<boolean>("download_url", {
+      url,
+      filename,
+    });
+  }
+
+  // **Parsing block
+  if (yomitan) {
     unlisteners.value = [
       ...unlisteners.value,
-      await listen<DownloadUrlProgress>(
-        "download-url-progress",
+      await listen<YomitanImportProgress>(
+        "yomitan-import-progress",
         ({ payload }) => {
-          Object.assign(progress, payload);
+          message.value = `Importing ${payload.bank} from ${outDir}`;
+          progressMessage.value = `${payload.current.toLocaleString()} / ${payload.total.toLocaleString()}`;
+          percentage.value = Math.round(
+            (100 * payload.current) / payload.total,
+          );
+        },
+      ),
+      await listen<YomitanSearchInitProgress>(
+        "yomitan-init-progress",
+        ({ payload }) => {
+          message.value = `Importing ${payload.dict} into search.db`;
+          progressMessage.value = `${payload.current.toLocaleString()} / ${payload.total.toLocaleString()}`;
+          percentage.value = Math.round(
+            (100 * payload.current) / payload.total,
+          );
         },
       ),
     ];
 
-    if (props.zipFilename) {
-      isDownloaded = await invoke<boolean>("download_and_unzip", {
-        url,
-        zipFilename,
-        outDir,
-        isSqlite: !!yomitan,
-      });
-    } else {
-      isDownloaded = await invoke<boolean>("download_url", {
-        url,
-        filepath,
-      });
-    }
-  }
-
-  emit("downloaded", isDownloaded);
-
-  // parsing block
-  if (yomitan) {
     await invoke("yomitan_parse_dir", {
       rootDir: outDir,
       // yomitan,
@@ -112,6 +132,9 @@ async function start() {
       dictPaths: [outDir],
     });
   }
+
+  unlisteners.value.map((u) => u());
+  unlisteners.value = [];
 }
 
 onBeforeUnmount(() => {

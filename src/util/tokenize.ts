@@ -1,18 +1,31 @@
+import { BaseDirectory, exists } from "@tauri-apps/plugin-fs";
+
 import { DownloadingProps } from "./loading";
 
-export function makeLinderaDownloadList(models: string[]): DownloadingProps[] {
+export async function makeLinderaDownloadList(
+  models: string[],
+): Promise<DownloadingProps[]> {
   const version = "6.2.0";
 
-  return models.map((model) => {
-    const filepath = `lindera/lindera-${model}`;
-    const zipFilename = `lindera-${model}-${version}.zip`;
-    const url = `https://github.com/lindera/lindera/releases/download/v${version}/${zipFilename}`;
+  const out: DownloadingProps[] = [];
 
-    return {
-      filepath,
-      zipFilename,
-      zipOutdir: "lindera",
+  for (const model of models) {
+    if (
+      await exists(`lindera/lindera-${model}`, {
+        baseDir: BaseDirectory.AppData,
+      })
+    )
+      continue;
+
+    const filename = `lindera-${model}-${version}.zip`;
+    const url = `https://github.com/lindera/lindera/releases/download/v${version}/${filename}`;
+
+    out.push({
+      filename,
+      outDir: "lindera",
       url,
-    };
-  });
+    });
+  }
+
+  return out;
 }
