@@ -33,7 +33,7 @@ defineExpose({
 });
 
 const isStarted = ref(false);
-const message = ref("Importing to search.db");
+const message = ref("Waiting to import to search.db");
 const progressMessage = ref("");
 const percentage = ref(0);
 
@@ -44,10 +44,9 @@ watch(percentage, () => {
   startTime = startTime || new Date();
   const now = new Date();
   const elapsedMinutes = (+now - +startTime) / (1000 * 60);
-  const remaining = (elapsedMinutes * 100) / percentage.value;
-  if (remaining > 1) {
-    progressMessage.value = `${remaining.toPrecision(2)} min left`;
-  }
+  const remaining = elapsedMinutes * (100 / percentage.value) - elapsedMinutes;
+
+  progressMessage.value = `${remaining >= 1 ? remaining.toPrecision(2) : "< 1"} min left`;
 });
 
 async function start() {

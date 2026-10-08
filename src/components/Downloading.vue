@@ -28,10 +28,7 @@ import {
   DownloadUrlProgress,
   UnzipProgress,
 } from "../util/loading";
-import {
-  YomitanImportProgress,
-  YomitanSearchInitProgress,
-} from "../util/dicts";
+import { YomitanImportProgress } from "../util/dicts";
 
 const props = defineProps<DownloadingProps>();
 
@@ -61,8 +58,6 @@ async function start() {
   isStarted.value = true;
 
   // **Downloading block
-  let isDownloaded = false;
-
   const { url, filename, outDir, yomitan } = props;
 
   unlisteners.value = [
@@ -85,14 +80,14 @@ async function start() {
   ];
 
   if (props.outDir) {
-    isDownloaded = await invoke<boolean>("download_and_unzip", {
+    await invoke<boolean>("download_and_unzip", {
       url,
       filename,
       outDir,
       isSqlite: !!yomitan,
     });
   } else {
-    isDownloaded = await invoke<boolean>("download_url", {
+    await invoke<boolean>("download_url", {
       url,
       filename,
     });
@@ -112,24 +107,11 @@ async function start() {
           );
         },
       ),
-      await listen<YomitanSearchInitProgress>(
-        "yomitan-init-progress",
-        ({ payload }) => {
-          message.value = `Importing ${payload.dict} into search.db`;
-          progressMessage.value = `${payload.current.toLocaleString()} / ${payload.total.toLocaleString()}`;
-          percentage.value = Math.round(
-            (100 * payload.current) / payload.total,
-          );
-        },
-      ),
     ];
 
     await invoke("yomitan_parse_dir", {
       rootDir: outDir,
       // yomitan,
-    });
-    await invoke("yomitan_import", {
-      dictPaths: [outDir],
     });
   }
 

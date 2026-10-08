@@ -4,7 +4,9 @@ export interface DownloadingProps {
   filename: string;
   outDir?: string;
   url: string;
-  yomitan?: {}; // TODO: yomitan user metadata
+  yomitan?: {
+    dictName: string;
+  }; // TODO: yomitan user metadata
 }
 
 export interface YomitanImportProps {

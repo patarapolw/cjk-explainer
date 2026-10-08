@@ -52,7 +52,6 @@ pub async fn download_and_unzip(
     out_dir: &str,
     is_sqlite: Option<bool>,
 ) -> Result<bool, AppError> {
-    println!("{url}");
     let out_path = is_sqlite
         .and_then(|b| {
             if b {

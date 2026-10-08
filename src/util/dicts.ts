@@ -37,12 +37,13 @@ export async function ghLatestReleaseURL(user_repo: string, assetName: RegExp) {
 export async function standardDicts(): Promise<DownloadingProps[]> {
   const out: DownloadingProps[] = [];
 
-  const outDir = "PixivLight";
+  const dictName = "PixivLight";
+  const outDir = `yomitan/${dictName}`;
   const d: DownloadingProps = {
-    filename: `${outDir}.zip`,
+    filename: `${dictName}.zip`,
     outDir,
     url: "",
-    yomitan: {},
+    yomitan: { dictName },
   };
   out.push(d);
   if (!(await exists(outDir, { baseDir: BaseDirectory.AppConfig }))) {
