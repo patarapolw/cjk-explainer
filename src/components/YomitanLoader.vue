@@ -8,7 +8,7 @@
     </p>
     <ProgressBar
       v-if="isStarted"
-      :mode="progressMessage ? 'determinate' : 'indeterminate'"
+      :mode="percentage ? 'determinate' : 'indeterminate'"
       :value="percentage"
       :show-value="false"
     />
@@ -19,7 +19,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
-import { onBeforeUnmount, ref } from "vue";
+import { onBeforeUnmount, ref, watch } from "vue";
 
 import ProgressBar from "primevue/progressbar";
 
@@ -39,8 +39,20 @@ const percentage = ref(0);
 
 const unlisteners = ref<UnlistenFn[]>([]);
 
+let startTime: Date;
+watch(percentage, () => {
+  startTime = startTime || new Date();
+  const now = new Date();
+  const elapsedMinutes = (+now - +startTime) / (1000 * 60);
+  const remaining = (elapsedMinutes * 100) / percentage.value;
+  if (remaining > 1) {
+    progressMessage.value = `${remaining.toPrecision(2)} min left`;
+  }
+});
+
 async function start() {
   isStarted.value = true;
+  startTime = new Date();
 
   unlisteners.value = [
     ...unlisteners.value,
@@ -48,7 +60,6 @@ async function start() {
       "yomitan-init-progress",
       ({ payload }) => {
         message.value = `Importing ${payload.dict} into search.db`;
-        progressMessage.value = `${payload.current.toLocaleString()} / ${payload.total.toLocaleString()}`;
         percentage.value = Math.round((100 * payload.current) / payload.total);
       },
     ),

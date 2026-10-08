@@ -84,15 +84,22 @@
   <Dialog :visible="toBeLoaded.length > 0" modal :closable="false">
     <div class="modal-content">
       <template v-for="(d, i) in toBeLoaded" :key="i">
-        <YomitanBuilder ref="loading_1" v-if="'dictPaths' in d" v-bind="d" />
-        <Downloading ref="loading_1" v-else v-bind="d" />
+        <YomitanLoader ref="loading" v-if="'dictPaths' in d" v-bind="d" />
+        <Downloading ref="loading" v-else v-bind="d" />
       </template>
     </div>
   </Dialog>
 </template>
 
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef } from "vue";
+import {
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  useTemplateRef,
+  watch,
+} from "vue";
 
 import SidebarLayout from "primevue/sidebarlayout";
 import SidebarBackdrop from "primevue/sidebarbackdrop";
@@ -118,17 +125,19 @@ import CogIcon from "@primeicons/vue/cog";
 import { invoke } from "@tauri-apps/api/core";
 
 import Downloading from "./components/Downloading.vue";
-import YomitanBuilder from "./components/YomitanBuilder.vue";
+import YomitanLoader from "./components/YomitanLoader.vue";
 
 import { makeLinderaDownloadList } from "./util/tokenize";
 import { toBeLoaded } from "./util/loading.ts";
 import { standardDicts } from "./util/dicts.ts";
 
-const elLoading_1 = useTemplateRef("loading_1");
+// array of refs, or undefined
+const elLoading = useTemplateRef("loading");
 
 const isMobile = ref(false);
 const navOpen = ref(false);
 const open = ref(false);
+
 let mql: MediaQueryList | null = null;
 function onMqlChange(event: MediaQueryListEvent) {
   isMobile.value = event.matches;
@@ -144,15 +153,27 @@ onMounted(() => {
 
   mql.addEventListener("change", onMqlChange);
 
-  loadAll().then(async () => {
-    await loadSegmenters();
-  });
+  loadAll();
 });
 
 onBeforeUnmount(() => {
   if (mql && onMqlChange) {
     mql.removeEventListener("change", onMqlChange);
   }
+});
+
+watch(toBeLoaded, () => {
+  nextTick(() => {
+    const firstLoader = elLoading.value?.[0];
+    if (firstLoader) {
+      firstLoader.start().then(() => {
+        // Exhaustive loop via vue::watch
+        toBeLoaded.value = toBeLoaded.value.slice(1);
+      });
+    } else {
+      loadSegmenters();
+    }
+  });
 });
 
 async function loadAll() {
@@ -164,29 +185,6 @@ async function loadAll() {
     ...dicts.filter((d) => d.filename),
     { dictPaths: dicts.map((d) => d.outDir!).filter((d) => d) },
   ];
-
-  while (toBeLoaded.value) {
-    const remaining = await new Promise<number>((resolve, reject) => {
-      nextTick(() => {
-        const firstLoader = elLoading_1.value?.[0];
-        if (firstLoader) {
-          firstLoader
-            .start()
-            .then(() => {
-              toBeLoaded.value = toBeLoaded.value.slice(1);
-              resolve(toBeLoaded.value.length);
-            })
-            .catch(reject);
-        } else {
-          resolve(0);
-        }
-      });
-    });
-
-    if (remaining <= 0) {
-      break;
-    }
-  }
 }
 
 async function loadSegmenters() {
