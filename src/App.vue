@@ -77,6 +77,14 @@
               .join("")
           }}
         </span>
+        <div>
+          <select v-model="settingsState.state.lang">
+            <option value="">Auto-detect</option>
+            <option value="ja-JP">ja-JP</option>
+            <option value="zh-CN">zh-CN</option>
+            <option value="ko-KR">ko-KR</option>
+          </select>
+        </div>
       </header>
       <RouterView />
     </SidebarMain>
@@ -130,6 +138,7 @@ import YomitanLoader from "./components/YomitanLoader.vue";
 import { makeLinderaDownloadList } from "./util/tokenize";
 import { toBeLoaded } from "./util/loading.ts";
 import { standardDicts } from "./util/dicts.ts";
+import { settingsState } from "./util/settings.ts";
 
 // array of refs, or undefined
 const elLoading = useTemplateRef("loading");

@@ -1,7 +1,12 @@
 import { createMemoryHistory, createRouter } from "vue-router";
 
 const routes = [
-  { path: "/", redirect: "/explain" },
+  { path: "/", redirect: "/dictionary" },
+  {
+    path: "/dictionary",
+    component: () => import("./views/DictionaryView.vue"),
+    name: "Dictionary",
+  },
   {
     path: "/explain",
     component: () => import("./views/Explainer.vue"),

@@ -27,7 +27,7 @@
           v-for="(t, i) in splitSentences(currentText)"
           :key="i"
           :text="t"
-          :lang="lang"
+          :lang="currentLang"
         />
       </div>
     </Dialog>
@@ -47,22 +47,28 @@ import { readText } from "@tauri-apps/plugin-clipboard-manager";
 import { onBeforeUnmount, ref, watch } from "vue";
 
 import ExpSegment from "../components/ExpSegment.vue";
+import { settingsState } from "../util/settings.ts";
 
 const currentText = ref("");
-const lang = ref("zh-CN");
+const currentLang = ref("zh-CN");
 const isDialogExplainer = ref(false);
 
 watch(isDialogExplainer, () => {
   if (isDialogExplainer.value) {
+    if (settingsState.computed.lang.value) {
+      currentLang.value = settingsState.computed.lang.value;
+      return;
+    }
+
     const excerpt = currentText.value.trim().slice(0, 100);
 
     if (/[ぁ-ゟ]/u.test(excerpt)) {
       // Japanese \p{scx} appears to catch Chinese punctuations...
-      lang.value = "ja-JP";
+      currentLang.value = "ja-JP";
     } else if (/[\p{sc=Hangul}]/u.test(excerpt)) {
-      lang.value = "ko-KR";
+      currentLang.value = "ko-KR";
     } else if (/[\p{sc=Han}]/u.test(excerpt)) {
-      lang.value = "zh-CN";
+      currentLang.value = "zh-CN";
     }
   }
 });

@@ -7,6 +7,7 @@ interface ISettingsState {
   supabasePublishableKey?: string;
   supabaseUsername?: string;
   supabasePassword?: string;
+  lang: string;
 }
 
 type ComputedSettingsState = Required<{
@@ -20,7 +21,9 @@ Give useful vocabularies in a table, with common forms and the reading if it's J
 
 class SettingsState {
   // vue::reactive is deep, but with localStorage, it's easier to manage shallow form.
-  state = reactive<ISettingsState>({});
+  state = reactive<ISettingsState>({
+    lang: "",
+  });
   computed: ComputedSettingsState;
   default: ISettingsState = {
     deepseekApiKey: import.meta.env.VITE_DEEPSEK_API_KEY,
@@ -29,6 +32,7 @@ class SettingsState {
     supabasePublishableKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
     supabaseUsername: import.meta.env.VITE_SUPABASE_USER,
     supabasePassword: import.meta.env.VITE_SUPABASE_USER_PASSWORD,
+    lang: "",
   };
 
   // let's make it localStorage-based for now
