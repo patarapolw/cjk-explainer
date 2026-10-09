@@ -1,6 +1,6 @@
 <template>
   <main class="container">
-    <InputText />
+    <InputText v-model="q" />
     <div class="scroller" ref="scroller" @scroll.passive="onScroll">
       <pre v-for="(it, i) in items" :key="i">
         {{ JSON.stringify({ it, i }, null, 2) }}
@@ -11,14 +11,23 @@
 
 <script setup lang="ts">
 import InputText from "primevue/inputtext";
-import { nextTick, onMounted, ref, useTemplateRef } from "vue";
+import { nextTick, onMounted, ref, useTemplateRef, watch } from "vue";
+import { searchDB } from "../db/search";
+import { settingsState } from "../util/settings";
 
-const items = ref<typeof allItems>([]);
+const q = ref("");
+const items = ref<{}[]>([]);
 
 const loading = ref(false);
 const nextOffset = ref<number | null>(0);
 
 const elScroller = useTemplateRef("scroller");
+
+watch([q, settingsState.computed.lang], () => {
+  loading.value = false;
+  nextOffset.value = 0;
+  loadMore(true);
+});
 
 function onScroll() {
   const el = elScroller.value;
@@ -28,34 +37,29 @@ function onScroll() {
   if (remaining < el.clientHeight / 2) loadMore();
 }
 
-async function loadMore() {
+async function loadMore(isNew?: boolean) {
   if (loading.value || nextOffset.value === null) return;
+  if (!q.value) return;
 
   loading.value = true;
   try {
-    const result = await getArticles(nextOffset.value);
-    items.value = [...items.value, ...result.items];
+    const result = await searchDB.search({
+      term: q.value,
+      limit: 5,
+      offset: nextOffset.value,
+    });
+    items.value = isNew ? result.items : [...items.value, ...result.items];
     nextOffset.value = result.next;
+
+    if (isNew && elScroller.value) {
+      elScroller.value.scrollTop = 0;
+    }
   } finally {
     loading.value = false;
   }
 
   await nextTick();
   onScroll();
-}
-
-const itemSize = 5;
-const allItems = Array.from({ length: 100 }).map((_, i) =>
-  ((i + 1) << 20).toString(36),
-);
-async function getArticles(offset: number) {
-  const endOffset = offset + itemSize;
-  const items = allItems.slice(offset, offset + itemSize);
-  const next = endOffset < allItems.length ? offset + items.length : null;
-
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
-  return { items, next };
 }
 
 onMounted(() => {
