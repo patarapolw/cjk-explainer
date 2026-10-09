@@ -130,8 +130,6 @@ import SidebarIcon from "@primeicons/vue/sidebar";
 import TextColorIcon from "@primeicons/vue/text-color";
 import CogIcon from "@primeicons/vue/cog";
 
-import { invoke } from "@tauri-apps/api/core";
-
 import Downloading from "./components/Downloading.vue";
 import YomitanLoader from "./components/YomitanLoader.vue";
 
@@ -179,8 +177,6 @@ watch(toBeLoaded, () => {
         // Exhaustive loop via vue::watch
         toBeLoaded.value = toBeLoaded.value.slice(1);
       });
-    } else {
-      loadSegmenters();
     }
   });
 });
@@ -194,28 +190,6 @@ async function loadAll() {
     ...dicts.filter((d) => d.filename),
     { dictPaths: dicts.map((d) => d.outDir!).filter((d) => d) },
   ];
-}
-
-async function loadSegmenters() {
-  await invoke("segment", {
-    lang: "ja-JP",
-    text: "おはようございます。おはよう御座います",
-  }).then(console.log);
-
-  await invoke("tokenize", {
-    lang: "ja-JP",
-    text: "おはようございます。おはよう御座います",
-  }).then(console.log);
-
-  await invoke("segment", {
-    lang: "ko-KR",
-    text: "저는 엄마가 밥을 먹은 지 안 먹은 지 몰라요",
-  }).then(console.log);
-
-  await invoke("tokenize", {
-    lang: "ko-KR",
-    text: "저는 엄마가 밥을 먹은 지 안 먹은 지 몰라요",
-  }).then(console.log);
 }
 </script>
 

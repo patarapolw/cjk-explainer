@@ -23,8 +23,14 @@ const nextOffset = ref<number | null>(0);
 
 const elScroller = useTemplateRef("scroller");
 
-watch([q, settingsState.computed.lang], () => {
-  loading.value = false;
+let activeRequest: Promise<void> | null = null;
+let requestId = 0;
+
+watch([q, settingsState.computed.lang], async () => {
+  const id = ++requestId;
+  await activeRequest;
+  if (id !== requestId) return;
+
   nextOffset.value = 0;
   loadMore(true);
 });
@@ -42,24 +48,41 @@ async function loadMore(isNew?: boolean) {
   if (!q.value) return;
 
   loading.value = true;
-  try {
-    const result = await searchDB.search({
-      term: q.value,
-      limit: 5,
-      offset: nextOffset.value,
-    });
-    items.value = isNew ? result.items : [...items.value, ...result.items];
-    nextOffset.value = result.next;
 
-    if (isNew && elScroller.value) {
-      elScroller.value.scrollTop = 0;
+  const id = requestId;
+  const term = q.value;
+  const offset = nextOffset.value;
+  const oldItems = items.value;
+
+  const request = (async () => {
+    try {
+      const result = await searchDB.search({
+        term,
+        limit: 5,
+        offset,
+      });
+
+      items.value = isNew ? result.items : [...oldItems, ...result.items];
+      nextOffset.value = result.next;
+
+      if (isNew && elScroller.value) {
+        elScroller.value.scrollTop = 0;
+      }
+    } finally {
+      loading.value = false;
     }
-  } finally {
-    loading.value = false;
-  }
+  })();
 
-  await nextTick();
-  onScroll();
+  activeRequest = request;
+  await request;
+
+  if (activeRequest === request) activeRequest = null;
+
+  // Only check after this request updated the current query's items.
+  if (id === requestId) {
+    await nextTick();
+    onScroll();
+  }
 }
 
 onMounted(() => {
