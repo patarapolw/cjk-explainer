@@ -1,10 +1,19 @@
 <template>
   <main class="container">
-    <InputText v-model="q" />
+    <InputText
+      inputmode="search"
+      name="term"
+      v-model="q"
+      autocapitalize="none"
+      autocorrect="off"
+      autocomplete="off"
+      spellcheck="false"
+      @input="onTermInput"
+    />
     <div class="scroller" ref="scroller" @scroll.passive="onScroll">
-      <pre v-for="(it, i) in items" :key="i">
-        {{ JSON.stringify({ it, i }, null, 2) }}
-      </pre>
+      <div v-for="(it, i) in items" :key="i">
+        <pre>{{ JSON.stringify({ it, i }, null, 2) }}</pre>
+      </div>
     </div>
   </main>
 </template>
@@ -12,6 +21,8 @@
 <script setup lang="ts">
 import InputText from "primevue/inputtext";
 import { nextTick, onMounted, ref, useTemplateRef, watch } from "vue";
+import { toKana } from "wanakana";
+
 import { searchDB } from "../db/search";
 import { settingsState } from "../util/settings";
 
@@ -34,6 +45,39 @@ watch([q, settingsState.computed.lang], async () => {
   nextOffset.value = 0;
   loadMore(true);
 });
+
+let isWanakanaFinished = true;
+
+function onTermInput({ target }: InputEvent) {
+  if (!(target instanceof HTMLInputElement)) return;
+  if (!isWanakanaFinished) return;
+
+  isWanakanaFinished = false;
+  try {
+    const lang = settingsState.computed.lang.value;
+    if (lang === "ja-JP") {
+      const conv = (s: string) =>
+        toKana(s, { useObsoleteKana: true, IMEMode: true });
+
+      let { selectionStart } = target;
+      selectionStart = selectionStart || q.value.length;
+      const qPrefix = conv(q.value.substring(0, selectionStart));
+
+      q.value = qPrefix + q.value.substring(selectionStart);
+      let i = 0;
+      for (; i < qPrefix.length; i++) {
+        if (q.value[i] !== qPrefix[i]) break;
+      }
+
+      nextTick(() => {
+        target.selectionStart = i;
+        target.selectionEnd = i;
+      });
+    }
+  } finally {
+    isWanakanaFinished = true;
+  }
+}
 
 function onScroll() {
   const el = elScroller.value;
