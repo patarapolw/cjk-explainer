@@ -109,9 +109,8 @@ async function start() {
       ),
     ];
 
-    await invoke("yomitan_parse_dir", {
+    await invoke("yomitan_make_ndjson", {
       rootDir: outDir,
-      // yomitan,
     });
   }
 

@@ -636,6 +636,7 @@ dependencies = [
 name = "cjk-explainer"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "serde",
  "serde_json",
  "tauri",
@@ -646,7 +647,6 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-sql",
  "tokio",
- "uuid",
  "yomitan-parser",
  "zip",
 ]

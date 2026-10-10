@@ -15,6 +15,8 @@ export interface YomitanSearchInitProgress {
   total: number;
 }
 
+const yomitanBaseDir = BaseDirectory.AppConfig;
+
 /**
  * @see https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28#get-the-latest-release
  */
@@ -46,7 +48,7 @@ export async function standardDicts(): Promise<DownloadingProps[]> {
     yomitan: { dictName },
   };
   out.push(d);
-  if (!(await exists(outDir, { baseDir: BaseDirectory.AppConfig }))) {
+  if (!(await exists(outDir, { baseDir: yomitanBaseDir }))) {
     // TODO: check for updates, rather than existence
     const url = await ghLatestReleaseURL(
       "MarvNC/pixiv-yomitan",
@@ -57,14 +59,14 @@ export async function standardDicts(): Promise<DownloadingProps[]> {
     }
   } else if (
     await exists(`${outDir}/term_bank_1.json`, {
-      baseDir: BaseDirectory.AppConfig,
+      baseDir: yomitanBaseDir,
     })
   ) {
   } else if (
-    await exists(`${outDir}/.imported`, { baseDir: BaseDirectory.AppConfig })
+    await exists(`${outDir}/term_bank.ndjson`, {
+      baseDir: yomitanBaseDir,
+    })
   ) {
-    out.pop();
-  } else {
     d.filename = "";
   }
 

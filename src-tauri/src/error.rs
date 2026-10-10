@@ -12,6 +12,7 @@ pub enum AppError {
     IOError(std::io::Error),
     ZipError(ZipError),
     TokioJoinError(tokio::task::JoinError),
+    SerdeJsonError(serde_json::Error),
     Error(String),
 }
 
@@ -25,6 +26,7 @@ impl fmt::Display for AppError {
             Self::IOError(e) => write!(f, "IOError: {e}"),
             Self::ZipError(e) => write!(f, "ZipError: {e}"),
             Self::TokioJoinError(e) => write!(f, "TokioJoinError: {e}"),
+            Self::SerdeJsonError(e) => write!(f, "SerdeJsonError: {e}"),
             Self::Error(e) => write!(f, "Error: {e}"),
         }
     }
@@ -71,6 +73,12 @@ impl From<ZipError> for AppError {
 impl From<tokio::task::JoinError> for AppError {
     fn from(e: tokio::task::JoinError) -> Self {
         Self::TokioJoinError(e)
+    }
+}
+
+impl From<serde_json::Error> for AppError {
+    fn from(e: serde_json::Error) -> Self {
+        Self::SerdeJsonError(e)
     }
 }
 

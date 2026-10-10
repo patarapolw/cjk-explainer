@@ -41,6 +41,7 @@ pub fn run() {
             tokenize::tokenize,
             yomitan::yomitan_parse_zip,
             yomitan::yomitan_parse_dir,
+            yomitan::yomitan_make_ndjson,
             yomitan::yomitan_import,
         ])
         .run(tauri::generate_context!())

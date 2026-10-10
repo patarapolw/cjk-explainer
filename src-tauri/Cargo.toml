@@ -28,5 +28,5 @@ tauri-plugin-sql = { version = "2.4.1", features = ["sqlite"] }
 tauri-plugin-fs = "2.6.0"
 tokio = { version = "1.53.1", features = ["io-util"] }
 zip = "8.6.0"
-uuid = { version = "1", features = ["v4"] }
+futures = "0.3.34"
 yomitan-parser = { path = "../yomitan-parser" }
