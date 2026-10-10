@@ -30,6 +30,7 @@ class SearchDatabase {
     limit: number;
     offset: number;
   }): Promise<{ items: any[]; next: any }> {
+    const originalTerm = opts.term;
     const isFTS = /^[~～]/.test(opts.term);
 
     if (isFTS) {
@@ -38,10 +39,20 @@ class SearchDatabase {
 
     if (!opts.term.length) return { items: [], next: null };
 
-    if (isFTS) {
-      return this.search_fts(opts);
-    } else {
-      return this.search_like(opts);
+    const start = new Date();
+    try {
+      if (isFTS) {
+        return await this.search_fts(opts);
+      } else {
+        return await this.search_like(opts);
+      }
+    } finally {
+      const timeTaken = (+new Date() - +start) / 1000;
+      if (timeTaken > 0.1) {
+        console.log(
+          `Searching [${originalTerm}] takes ${timeTaken.toPrecision(2)} seconds`,
+        );
+      }
     }
   }
 
@@ -56,15 +67,17 @@ class SearchDatabase {
   }) {
     const [lang] = settingsState.computed.lang.value.split("-");
 
+    const qTerm = term.toLocaleUpperCase() + "*";
+
     const items = await this.db.select<{}[]>(
       /* sql */ `
       SELECT * FROM term
       WHERE ${lang ? `term_${lang} IS NOT NULL` : "TRUE"}
-        AND term LIKE $1||'%'
+        AND term GLOB $1
       ORDER BY score DESC
       LIMIT $2 OFFSET $3
     `,
-      [term, limit + 1, offset],
+      [qTerm, limit + 1, offset],
     );
 
     let next: null | number = null;
@@ -86,26 +99,31 @@ class SearchDatabase {
     offset: number;
   }) {
     const vLang = settingsState.computed.lang.value;
-    const langs = vLang ? [vLang] : ["ja-JP", "zh-CN", "ko-KR"];
-    term = term.replace(/['"]/g, " ");
 
-    const term_langs = await Promise.all(
-      langs.map((ln) =>
-        invoke<string[]>("tokenize", {
-          lang: ln,
-          text: term,
-        }).then((s) => s.join(" ")),
-      ),
-    );
+    const kvs = (
+      await Promise.all(
+        (vLang ? [vLang] : ["ja-JP", "zh-CN", "ko-KR"]).map((lang) =>
+          invoke<string[]>("tokenize", {
+            lang,
+            text: term,
+          }).then((ts) => [lang.split("-")[0], ts.join(" ")]),
+        ),
+      )
+    ).filter(([, v]) => v);
 
-    const items = await this.db.select<{}[]>(
-      /* sql */ `SELECT * FROM term
-      WHERE ${langs.map((ln, i) => `term_${ln} LIKE '% '||$${i + 1}||' %'`).join(" OR ")}
-      ORDER BY score DESC
-      LIMIT $${langs.length + 1} OFFSET ${langs.length + 2}
+    const qMatch = kvs
+      .map(([k, v]) => `term_${k}:"${v.replace(/"/g, " ")}"`)
+      .join(" OR ");
+
+    const items = kvs.length
+      ? await this.db.select<{}[]>(
+          /* sql */ `SELECT * FROM term_fts
+      WHERE term_fts MATCH $1
+      LIMIT $2 OFFSET $3
     `,
-      [...term_langs, limit + 1, offset],
-    );
+          [qMatch, limit + 1, offset],
+        )
+      : [];
 
     let next: null | number = null;
     if (items.length > limit) {
