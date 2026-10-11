@@ -27,6 +27,8 @@ class SearchDatabase {
     return new SearchDatabase(db);
   }
 
+  public dictMap = new Map<string, Database>();
+
   private constructor(public db: Database) {}
 
   async migrate() {
@@ -45,7 +47,7 @@ class SearchDatabase {
 
         tags        TEXT CHECK (tags      LIKE ' %_ '),
 
-        ref         TEXT_JSON NOT NULL                  -- { dict_id: u64, term_id: u64 }[]
+        ref         TEXT_JSON NOT NULL                  -- { dict_id: u64, term_id: u64, score: int | null }[]
       );
 
       CREATE UNIQUE INDEX IF NOT EXISTS idx_u_term_search ON term_search (
@@ -146,7 +148,7 @@ class SearchDatabase {
       qTerm += "*";
     }
 
-    const items = await this.db.select<{}[]>(
+    const items = await this.db.select<{ ref: string }[]>(
       /* sql */ `
       SELECT * FROM term_search
       WHERE ${lang ? `term_${lang} IS NOT NULL` : "TRUE"}
@@ -163,7 +165,7 @@ class SearchDatabase {
       next = offset + limit;
     }
 
-    return { items, next };
+    return { items: await this.expandItems(items), next };
   }
 
   private async search_fts({
@@ -193,7 +195,7 @@ class SearchDatabase {
       .join(" OR ");
 
     const items = kvs.length
-      ? await this.db.select<{}[]>(
+      ? await this.db.select<{ ref: string }[]>(
           /* sql */ `
         SELECT *, rank FROM term_search_fts
         WHERE term_search_fts MATCH $1
@@ -209,7 +211,75 @@ class SearchDatabase {
       next = offset + limit;
     }
 
-    return { items, next };
+    return { items: await this.expandItems(items), next };
+  }
+
+  private async expandItems(rawItems: { ref: string }[]) {
+    const refs: { dict_id: number; term_id: number }[] = [];
+    const entMap = new Map<string, { dict_id: number; term_id: number }>();
+
+    const items = rawItems.map(({ ref, ...it }) => {
+      const entries: { dict_id: number; term_id: number }[] = JSON.parse(ref);
+      refs.push(
+        ...entries.map(({ dict_id, term_id }) => ({ dict_id, term_id })),
+      );
+      return { ...it, entries };
+    });
+
+    for (const ent of await this.refsToEntries(refs)) {
+      entMap.set(
+        JSON.stringify({ dict_id: ent.dict_id, term_id: ent.term_id }),
+        ent,
+      );
+    }
+
+    return items.map(({ entries, ...it }) => ({
+      ...it,
+      entries: entries.map(
+        (ent) =>
+          entMap.get(
+            JSON.stringify({ dict_id: ent.dict_id, term_id: ent.term_id }),
+          ) || ent,
+      ),
+    }));
+  }
+
+  private async refsToEntries(
+    refs: { dict_id: number; term_id: number }[],
+  ): Promise<{ dict_id: number; term_id: number }[]> {
+    if (!refs.length) return [];
+
+    const dictTermIdsMap = new Map<number, Set<number>>();
+
+    for (const r of refs) {
+      const termIds = dictTermIdsMap.get(r.dict_id) || new Set();
+      termIds.add(r.term_id);
+      dictTermIdsMap.set(r.dict_id, termIds);
+    }
+
+    const dictIds = [...dictTermIdsMap.keys()];
+    const out: { dict_id: number; term_id: number; score: number | null }[] =
+      [];
+
+    for (const r of await this.db.select<{ rowid: number; path: string }[]>(
+      `SELECT rowid, "path" FROM "index" WHERE rowid IN (${dictIds.map((_, i) => `$${i + 1}`)})`,
+      dictIds,
+    )) {
+      const dictDB =
+        this.dictMap.get(r.path) ||
+        (await Database.load(`sqlite:${r.path}/content.db`));
+
+      const termIds = Array.from(dictTermIdsMap.get(r.rowid)!);
+      const terms = await dictDB.select<
+        { term_id: number; score: number | null }[]
+      >(
+        `SELECT rowid term_id, * FROM term WHERE rowid IN (${termIds.map((_, i) => `$${i + 1}`)})`,
+        termIds,
+      );
+      out.push(...terms.map((t) => ({ dict_id: r.rowid, ...t })));
+    }
+
+    return out;
   }
 }
 

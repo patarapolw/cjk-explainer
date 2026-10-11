@@ -68,7 +68,7 @@ const qStateOptions = ref([
 ]);
 const qState = ref<string | null>(null);
 
-const autoKana = ref(true);
+const autoKana = ref(settingsState.computed.lang.value === "ja-JP");
 
 const loading = ref(false);
 const nextOffset = ref<number | null>(0);
@@ -140,18 +140,20 @@ async function loadMore(isNew?: boolean) {
   loading.value = true;
 
   const id = requestId;
-  let term = q.value.trim();
+
   const offset = nextOffset.value;
   const oldItems = items.value;
+
+  let term = q.value.trimStart();
   let type = qState.value;
+
+  if (type !== "exact" && term.includes(" ")) {
+    term = term.split(" ", 2)[0];
+    type = type || "exact";
+  }
 
   const request = (async () => {
     try {
-      if (type !== "exact" && term.includes(" ")) {
-        term = term.split(" ", 2)[0];
-        type = type || "exact";
-      }
-
       const result = await searchDB.search({
         term,
         limit: 5,
