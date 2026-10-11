@@ -12,68 +12,145 @@ class SearchDatabase {
       }
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
+
+    let db: Database;
     while (true) {
       try {
-        const db = await Database.load("sqlite:search.db");
-        return new SearchDatabase(db);
+        db = await Database.load("sqlite:search.db");
+        break;
       } catch (e) {
         console.error(e);
       }
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
+
+    return new SearchDatabase(db);
   }
 
   private constructor(public db: Database) {}
+
+  async migrate() {
+    await this.db.execute(/* sql */ `
+      CREATE TABLE IF NOT EXISTS term_search (
+        term        TEXT NOT NULL,
+        term_ja     TEXT CHECK (term_ja   LIKE ' %_ '),
+        term_zh     TEXT CHECK (term_zh   LIKE ' %_ '),
+        term_ko     TEXT CHECK (term_ko   LIKE ' %_ '),
+
+        reading     TEXT CHECK (reading   LIKE ' %_ '), -- could be helpful for ' Pin[1-5] Yin[1-5] '
+
+        def_tags    TEXT CHECK (def_tags  LIKE ' %_ '), -- space-separated, accept NULL
+        rules       TEXT CHECK (rules     LIKE ' %_ '),
+        score       INTEGER,
+
+        tags        TEXT CHECK (tags      LIKE ' %_ '),
+
+        ref         TEXT_JSON NOT NULL                  -- { dict_id: u64, term_id: u64 }[]
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_u_term_search ON term_search (
+        term, reading,
+        (term_ja IS NULL), (term_zh IS NULL), (term_ko IS NULL)
+      );
+    `);
+
+    const searchCols = [
+      "term",
+      "term_ja",
+      "term_zh",
+      "term_ko",
+      "reading",
+      "def_tags",
+      "rules",
+      "score",
+      "tags",
+      "ref",
+    ];
+
+    const virtualTableSQL = createVirtualTableSQL(
+      "term_search",
+      searchCols,
+      ["term", "score", "ref"],
+      "IF NOT EXISTS",
+    );
+
+    console.log(virtualTableSQL);
+    await this.db.execute(virtualTableSQL);
+
+    // const label = "load into term_search_fts";
+    // console.time(label);
+
+    // const doUpdateSpaceSep = (c: string) => /* sql */ `
+    //   "${c}" = IIF("${c}" = excluded.${c}, "${c}",
+    //     NULLIF(TRIM(FORMAT(' %s %s ', TRIM("${c}"), TRIM(excluded.${c}))), ''))`;
+
+    // try {
+    //   const cols = searchCols.filter((c) => c !== "ref");
+    //   await this.db.execute(/* sql */ `
+    //   INSERT INTO term_search (${cols.map((c) => `"${c}"`)}, ref)
+    //   SELECT ${cols.map((c) => `"${c}"`)},
+    //     json_array(json_object('dict_id', index_rowid, 'term_id', term_rowid, 'score', score))
+    //   FROM term
+    //   WHERE TRUE
+    //   ON CONFLICT DO UPDATE SET
+    //     ${["def_tags", "rules", "tags"].map((c) => doUpdateSpaceSep(c))},
+    //     score = IIF(IFNULL(excluded.score, 0) > IFNULL("score", 0), excluded.score, "score"),
+    //     ref = json_insert(ref, '$[#]', json_extract(excluded.ref, '$[0]'))
+    //   ;
+    // `);
+    // } finally {
+    //   console.timeEnd(label);
+    // }
+  }
 
   async search(opts: {
     term: string;
     limit: number;
     offset: number;
+    type: string | null;
   }): Promise<{ items: any[]; next: any }> {
-    const originalTerm = opts.term;
-    const isFTS = /^[~～]/.test(opts.term);
-
-    if (isFTS) {
-      opts.term = opts.term.slice(1);
-    }
-
     if (!opts.term.length) return { items: [], next: null };
 
     const start = new Date();
     try {
-      if (isFTS) {
+      if (opts.type === "fts") {
         return await this.search_fts(opts);
       } else {
-        return await this.search_like(opts);
+        return await this.search_main(opts);
       }
     } finally {
       const timeTaken = (+new Date() - +start) / 1000;
       if (timeTaken > 0.1) {
         console.log(
-          `Searching [${originalTerm}] takes ${timeTaken.toPrecision(2)} seconds`,
+          `Searching [${opts.term}] takes ${timeTaken.toPrecision(2)} seconds`,
         );
       }
     }
   }
 
-  private async search_like({
+  private async search_main({
     term,
     limit,
     offset,
+    type,
   }: {
     term: string;
     limit: number;
     offset: number;
+    type: string | null;
   }) {
     const [lang] = settingsState.computed.lang.value.split("-");
 
-    const qTerm = term.toLocaleUpperCase() + "*";
+    let qTerm = term.toLocaleUpperCase();
+    if (!type && !qTerm.endsWith(" ")) {
+      qTerm += "*";
+    }
 
     const items = await this.db.select<{}[]>(
       /* sql */ `
-      SELECT * FROM term
+      SELECT * FROM term_search
       WHERE ${lang ? `term_${lang} IS NOT NULL` : "TRUE"}
-        AND term GLOB $1
+        AND term ${type ? "=" : "GLOB"} $1
       ORDER BY score DESC
       LIMIT $2 OFFSET $3
     `,
@@ -117,9 +194,10 @@ class SearchDatabase {
 
     const items = kvs.length
       ? await this.db.select<{}[]>(
-          /* sql */ `SELECT * FROM term_fts
-      WHERE term_fts MATCH $1
-      LIMIT $2 OFFSET $3
+          /* sql */ `
+        SELECT *, rank FROM term_search_fts
+        WHERE term_search_fts MATCH $1
+        LIMIT $2 OFFSET $3
     `,
           [qMatch, limit + 1, offset],
         )
@@ -136,3 +214,67 @@ class SearchDatabase {
 }
 
 export const searchDB = await SearchDatabase.init();
+
+function createVirtualTableSQL(
+  tableName: string,
+  cols: string[],
+  unindexed: string[],
+  ifNotExists = "",
+) {
+  const sql = [
+    `
+CREATE VIRTUAL TABLE ${ifNotExists} ${tableName}_fts USING fts5 (
+  ${cols.map((c) => `\n  "${c}"${unindexed.includes(c) ? "  UNINDEXED" : ""}`)},
+  content='${tableName}',
+  tokenize="unicode61 tokenchars '-'"
+);
+`,
+  ];
+
+  const insertSQL = `
+  INSERT INTO ${tableName}_fts (
+    ${cols.filter((c) => !unindexed.includes(c)).map((c) => `"${c}"`)},
+    rowid
+  ) VALUES (
+    ${cols.filter((c) => !unindexed.includes(c)).map((c) => `new.${c}`)},
+    new.rowid
+  );
+`;
+
+  const deleteSQL = `
+  INSERT INTO ${tableName}_fts (
+    ${cols.filter((c) => !unindexed.includes(c)).map((c) => `"${c}"`)},
+    rowid, ${tableName}_fts
+  ) VALUES (
+    ${cols.filter((c) => !unindexed.includes(c)).map((c) => `old.${c}`)},
+    old.rowid, 'delete'
+  );
+`;
+
+  sql.push(`
+CREATE TRIGGER ${ifNotExists} t_${tableName}_after_insert
+AFTER INSERT ON "${tableName}"
+BEGIN
+${insertSQL}
+END;
+`);
+
+  sql.push(`
+CREATE TRIGGER ${ifNotExists} t_${tableName}_after_delete
+AFTER DELETE ON "${tableName}"
+BEGIN
+${deleteSQL}
+END;
+`);
+
+  sql.push(`
+CREATE TRIGGER ${ifNotExists} t_${tableName}_after_update
+AFTER UPDATE ON "${tableName}"
+BEGIN
+${deleteSQL}
+${insertSQL}
+END;
+`);
+
+  return sql.join("\n");
+}
