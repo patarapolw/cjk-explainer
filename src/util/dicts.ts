@@ -122,7 +122,9 @@ export async function standardDicts(): Promise<DownloadingProps[]> {
     ) {
       d.url = "";
       if (d.yomitan) d.yomitan.parsed = true;
-    } else if (
+    }
+
+    if (
       await exists(`${d.outDir}/.imported`, {
         baseDir: yomitanBaseDir,
       })

@@ -37,7 +37,12 @@ defineExpose({
 });
 
 const isStarted = ref(false);
-const message = ref(`Waiting to download ${props.filename} from ${props.url}`);
+const message = ref(
+  "Waiting to " +
+    (props.url
+      ? `download ${props.filename} from ${props.url}`
+      : `parse ${props.filename}`),
+);
 const progressMessage = ref("");
 const percentage = ref(0);
 
