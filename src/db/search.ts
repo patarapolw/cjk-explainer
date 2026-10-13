@@ -84,10 +84,13 @@ class SearchDatabase {
           segments = newSegments;
         }
       }
-      const qReading = `reading:(${segments.map((s) => `"${s}"`).join(" OR ")})`;
+      let qReading = segments
+        .map((s) => `"${s.replace(/"/g, " ")}"`)
+        .join(" OR ");
+      qReading =
+        "reading:" + (segments.length > 1 ? `(${qReading})` : qReading);
       params.push(qReading);
     }
-    console.log(params);
 
     const items = params.length
       ? await this.db.select<{ id: number }[]>(
@@ -142,8 +145,12 @@ class SearchDatabase {
           segments = newSegments;
         }
       }
-      const qReading = `reading:(${segments.map((s) => `"${s}"`).join(" OR ")})`;
-      qMatch = qMatch ? `${qReading} (${qMatch})` : qReading;
+      let qReading = segments
+        .map((s) => `"${s.replace(/"/g, " ")}"`)
+        .join(" OR ");
+      qReading =
+        "reading:" + (segments.length > 1 ? `(${qReading})` : qReading);
+      qMatch = qMatch ? `${qReading} AND (${qMatch})` : qReading;
     }
 
     const items = qMatch.length

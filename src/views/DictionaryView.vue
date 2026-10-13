@@ -33,6 +33,7 @@
         autocorrect="off"
         autocomplete="off"
         spellcheck="false"
+        @input="onTermInput"
         fluid
       />
       <nav>
@@ -119,12 +120,13 @@ watch(settingsState.computed.lang, (lang) => {
 
 let isWanakanaFinished = true;
 
-function onTermInput({ target }: InputEvent) {
+async function onTermInput({ target }: InputEvent) {
   if (!(target instanceof HTMLInputElement)) return;
   if (!isWanakanaFinished) return;
 
   isWanakanaFinished = false;
   try {
+    await nextTick();
     if (
       autoKana.value &&
       ["", "ja-JP"].includes(settingsState.computed.lang.value)
@@ -133,19 +135,20 @@ function onTermInput({ target }: InputEvent) {
         toKana(s, { useObsoleteKana: true, IMEMode: true });
 
       let { selectionStart } = target;
-      selectionStart = selectionStart || q.value.length;
-      const qPrefix = conv(q.value.substring(0, selectionStart));
+      selectionStart = selectionStart || target.value.length;
+      const prefix = conv(target.value.substring(0, selectionStart));
 
-      q.value = qPrefix + q.value.substring(selectionStart);
+      target.value = prefix + target.value.substring(selectionStart);
       let i = 0;
-      for (const c of qPrefix) {
-        if (q.value[i++] !== c) break;
+      for (const c of prefix) {
+        if (target.value[i++] !== c) break;
       }
 
-      nextTick(() => {
-        target.selectionStart = i;
-        target.selectionEnd = i;
-      });
+      target.dispatchEvent(new Event("input", { bubbles: true }));
+      await nextTick();
+
+      target.selectionStart = i;
+      target.selectionEnd = i;
     }
   } finally {
     isWanakanaFinished = true;
