@@ -74,7 +74,13 @@ class SearchDatabase {
 
     const params: string[] = [];
     if (qTerm) params.push(qTerm);
-    if (reading) params.push(`reading:"${reading.replace(/"/g, " ")}"`);
+    if (reading) {
+      if (!lang || lang == "zh-CN") {
+        reading = await invoke("normalize_reading", { reading });
+      }
+      params.push(`reading:(${reading.replace(/"/g, " ")})`);
+    }
+    console.log(params);
 
     const items = params.length
       ? await this.db.select<{ id: number }[]>(
@@ -100,16 +106,16 @@ class SearchDatabase {
   }
 
   private async search_fts({ term, reading, limit, offset }: SearchOpts) {
-    const vLang = settingsState.computed.lang.value;
+    const lang = settingsState.computed.lang.value;
 
     const kvs = term.length
       ? (
           await Promise.all(
-            (vLang ? [vLang] : ["ja-JP", "zh-CN", "ko-KR"]).map((lang) =>
+            (lang ? [lang] : ["ja-JP", "zh-CN", "ko-KR"]).map((subLang) =>
               invoke<string[]>("tokenize", {
-                lang,
+                lang: subLang,
                 text: term,
-              }).then((ts) => [lang.split("-")[0], ts.join(" ")]),
+              }).then((ts) => [subLang.split("-")[0], ts.join(" ")]),
             ),
           )
         ).filter(([, v]) => v)
@@ -120,7 +126,10 @@ class SearchDatabase {
       .join(" OR ");
 
     if (reading) {
-      const qReading = `reading:"${reading.replace(/"/g, " ")}"`;
+      if (!lang || lang == "zh-CN") {
+        reading = await invoke("normalize_reading", { reading });
+      }
+      const qReading = `reading:(${reading})`;
       qMatch = qMatch ? `${qReading} (${qMatch})` : qReading;
     }
 
@@ -129,7 +138,7 @@ class SearchDatabase {
           /* sql */ `
         SELECT *, rowid id, rank FROM term_search_fts
         WHERE term_search_fts MATCH $1
-        ORDER BY rank DESC
+        ORDER BY rank
         LIMIT $2 OFFSET $3
     `,
           [qMatch, limit + 1, offset],
