@@ -7132,7 +7132,6 @@ dependencies = [
 name = "yomitan-parser"
 version = "0.1.0"
 dependencies = [
- "csv",
  "futures",
  "itertools",
  "lindera",

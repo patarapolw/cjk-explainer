@@ -9,7 +9,7 @@ use tokio::{
 use yomitan_parser::{
     error::YomitanError,
     parser::{YomitanImportProgress, YomitanParser},
-    pinyin::{Opts, normalize_pinyin},
+    pinyin::expand_pinyin,
     search::YomitanSearch,
     tokenize::Lang,
 };
@@ -170,6 +170,6 @@ pub async fn yomitan_import(
 }
 
 #[tauri::command]
-pub fn normalize_reading(reading: &str) -> String {
-    normalize_pinyin(reading, Opts::QUERY).unwrap_or_else(|| reading.to_string())
+pub fn normalize_reading(reading: &str) -> Vec<String> {
+    expand_pinyin(reading)
 }

@@ -75,10 +75,17 @@ class SearchDatabase {
     const params: string[] = [];
     if (qTerm) params.push(qTerm);
     if (reading) {
+      let segments = [reading];
       if (!lang || lang == "zh-CN") {
-        reading = await invoke("normalize_reading", { reading });
+        const newSegments = await invoke<string[]>("normalize_reading", {
+          reading,
+        });
+        if (newSegments.length) {
+          segments = newSegments;
+        }
       }
-      params.push(`reading:(${reading.replace(/"/g, " ")})`);
+      const qReading = `reading:(${segments.map((s) => `"${s}"`).join(" OR ")})`;
+      params.push(qReading);
     }
     console.log(params);
 
@@ -126,10 +133,16 @@ class SearchDatabase {
       .join(" OR ");
 
     if (reading) {
+      let segments = [reading];
       if (!lang || lang == "zh-CN") {
-        reading = await invoke("normalize_reading", { reading });
+        const newSegments = await invoke<string[]>("normalize_reading", {
+          reading,
+        });
+        if (newSegments.length) {
+          segments = newSegments;
+        }
       }
-      const qReading = `reading:(${reading})`;
+      const qReading = `reading:(${segments.map((s) => `"${s}"`).join(" OR ")})`;
       qMatch = qMatch ? `${qReading} (${qMatch})` : qReading;
     }
 
