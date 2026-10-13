@@ -6,11 +6,14 @@ export interface DownloadingProps {
   url: string;
   yomitan?: {
     dictName: string;
-  }; // TODO: yomitan user metadata
+    lang?: string;
+    parsed?: boolean;
+  };
 }
 
 export interface YomitanImportProps {
   dictPaths: string[];
+  lang?: string;
 }
 
 export interface DownloadUrlProgress {

@@ -91,7 +91,10 @@
   </SidebarLayout>
   <Dialog :visible="toBeLoaded.length > 0" modal :closable="false">
     <div class="modal-content">
-      <template v-for="(d, i) in toBeLoaded" :key="i">
+      <template
+        v-for="d in toBeLoaded"
+        :key="'filename' in d ? d.filename : d.lang || ''"
+      >
         <YomitanLoader ref="loading" v-if="'dictPaths' in d" v-bind="d" />
         <Downloading ref="loading" v-else v-bind="d" />
       </template>
@@ -134,7 +137,7 @@ import Downloading from "./components/Downloading.vue";
 import YomitanLoader from "./components/YomitanLoader.vue";
 
 import { makeLinderaDownloadList } from "./util/tokenize";
-import { toBeLoaded } from "./util/loading.ts";
+import { toBeLoaded, YomitanImportProps } from "./util/loading.ts";
 import { standardDicts } from "./util/dicts.ts";
 import { settingsState } from "./util/settings.ts";
 
@@ -188,8 +191,24 @@ async function loadAll() {
     ...toBeLoaded.value,
     ...(await makeLinderaDownloadList(["unidic", "ko-dic", "cc-cedict"])),
     ...dicts.filter((d) => d.filename),
-    { dictPaths: dicts.map((d) => d.outDir!).filter((d) => d) },
   ];
+
+  let imp: YomitanImportProps = {
+    dictPaths: [],
+  };
+
+  for (const d of dicts.sort((a, b) =>
+    (a.yomitan?.lang || "").localeCompare(b.yomitan?.lang || ""),
+  )) {
+    if (!d.yomitan) return;
+    if (imp.lang !== d.yomitan.lang) {
+      if (imp.dictPaths.length) toBeLoaded.value = [...toBeLoaded.value, imp];
+      imp = { dictPaths: [], lang: d.yomitan.lang };
+    }
+    imp.dictPaths.push(d.outDir!);
+  }
+
+  if (imp.dictPaths.length) toBeLoaded.value = [...toBeLoaded.value, imp];
 }
 </script>
 

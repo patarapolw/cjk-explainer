@@ -62,7 +62,10 @@ export async function standardDicts(): Promise<DownloadingProps[]> {
           filename: `${dictName}.zip`,
           outDir: `yomitan/${dictName}`,
           url: "",
-          yomitan: { dictName },
+          yomitan: {
+            dictName,
+            lang,
+          },
         },
       }),
     );
@@ -112,6 +115,13 @@ export async function standardDicts(): Promise<DownloadingProps[]> {
       })
     ) {
       d.url = "";
+    } else if (
+      await exists(`${d.outDir}/content.db`, {
+        baseDir: yomitanBaseDir,
+      })
+    ) {
+      d.url = "";
+      if (d.yomitan) d.yomitan.parsed = true;
     } else if (
       await exists(`${d.outDir}/.imported`, {
         baseDir: yomitanBaseDir,

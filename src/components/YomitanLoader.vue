@@ -1,5 +1,6 @@
 <template>
   <div>
+    <p v-for="(msg, i) in oldMessages" :key="i">{{ msg }}</p>
     <p>
       {{ message }}
       <span v-if="progressMessage" style="float: right">
@@ -26,14 +27,20 @@ import ProgressBar from "primevue/progressbar";
 import { YomitanSearchInitProgress } from "../util/dicts";
 import { YomitanImportProps } from "../util/loading";
 
-const { dictPaths } = defineProps<YomitanImportProps>();
+const { dictPaths, lang } = defineProps<YomitanImportProps>();
 
 defineExpose({
   start,
 });
 
 const isStarted = ref(false);
-const message = ref("Waiting to import to search.db");
+
+const oldMessages = ref<string[]>([]);
+const message = ref(
+  `Waiting to import ${lang ? `(lang: ${lang})` : ""} to search.db`,
+);
+const currentDict = ref("");
+
 const progressMessage = ref("");
 const percentage = ref(0);
 
@@ -58,7 +65,15 @@ async function start() {
     await listen<YomitanSearchInitProgress>(
       "yomitan-init-progress",
       ({ payload }) => {
-        message.value = `Importing ${payload.dict} into search.db`;
+        if (currentDict.value && payload.dict !== currentDict.value) {
+          oldMessages.value = [
+            ...oldMessages.value,
+            `Imported ${currentDict.value}`,
+          ];
+          currentDict.value = payload.dict;
+        }
+
+        message.value = `Importing ${lang ? `(lang: ${lang})` : ""} ${payload.dict} into search.db`;
         percentage.value = Math.round((100 * payload.current) / payload.total);
       },
     ),
@@ -66,6 +81,7 @@ async function start() {
 
   await invoke("yomitan_import", {
     dictPaths,
+    lang,
   });
 
   unlisteners.value.map((u) => u());
