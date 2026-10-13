@@ -17,57 +17,108 @@ export interface YomitanSearchInitProgress {
 
 const yomitanBaseDir = BaseDirectory.AppConfig;
 
-/**
- * @see https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28#get-the-latest-release
- */
-export async function ghLatestReleaseURL(user_repo: string, assetName: RegExp) {
-  const releaseData: {
-    assets: { name: string; browser_download_url: string }[];
-  } = await fetch(`https://api.github.com/repos/${user_repo}/releases/latest`, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "cjk-explainer",
-    },
-  }).then((r) => r.json());
-
-  const a = releaseData.assets.find((a) => assetName.test(a.name));
-  if (!a) return;
-  return a.browser_download_url;
+interface IGhSource {
+  dictName: string;
+  regex: RegExp;
+  lang?: string;
 }
 
 export async function standardDicts(): Promise<DownloadingProps[]> {
   const out: DownloadingProps[] = [];
 
-  const dictName = "PixivLight";
-  const outDir = `yomitan/${dictName}`;
-  const d: DownloadingProps = {
-    filename: `${dictName}.zip`,
-    outDir,
-    url: "",
-    yomitan: { dictName },
+  const ghSources: Record<string, IGhSource[]> = {
+    "MarvNC/pixiv-yomitan": [
+      {
+        dictName: "PixivLight",
+        regex: /^PixivLight_.+\.zip$/,
+      },
+    ],
+    "MarvNC/wikipedia-yomitan": [
+      {
+        dictName: "ja.Wikipedia",
+        regex: /^ja\.Wikipedia\..+\.zip$/,
+        lang: "ja-JP",
+      },
+      {
+        dictName: "zh.Wikipedia",
+        regex: /^zh\.Wikipedia\..+\.zip$/,
+        lang: "zh-CN",
+      },
+      {
+        dictName: "ko.Wikipedia",
+        regex: /^ko\.Wikipedia\..+\.zip$/,
+        lang: "ko-KR",
+      },
+    ],
   };
-  out.push(d);
-  if (!(await exists(outDir, { baseDir: yomitanBaseDir }))) {
-    // TODO: check for updates, rather than existence
-    const url = await ghLatestReleaseURL(
-      "MarvNC/pixiv-yomitan",
-      /^PixivLight_.+\.zip$/,
+
+  for (const [user_repo, vs] of Object.entries(ghSources)) {
+    let assets: (IGhSource & { props: DownloadingProps })[] = vs.map(
+      ({ dictName, regex, lang }) => ({
+        dictName,
+        regex,
+        lang,
+        props: {
+          filename: `${dictName}.zip`,
+          outDir: `yomitan/${dictName}`,
+          url: "",
+          yomitan: { dictName },
+        },
+      }),
     );
-    if (url) {
-      d.url = url;
+
+    if (
+      (
+        await Promise.all(
+          assets.map((a) =>
+            exists(a.props.outDir!, { baseDir: yomitanBaseDir }),
+          ),
+        )
+      ).some((ex) => !ex)
+    ) {
+      const {
+        assets: resAssets,
+      }: {
+        assets: { name: string; browser_download_url: string }[];
+      } = await fetch(
+        /**
+         * @see https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28#get-the-latest-release
+         */
+        `https://api.github.com/repos/${user_repo}/releases/latest`,
+        {
+          headers: {
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "cjk-explainer",
+          },
+        },
+      ).then((r) => r.json());
+
+      assets = assets.map((a) => {
+        a.props.url =
+          resAssets.find((res) => a.regex.test(res.name))
+            ?.browser_download_url || "";
+        return a;
+      });
     }
-  } else if (
-    await exists(`${outDir}/term_bank_1.json`, {
-      baseDir: yomitanBaseDir,
-    })
-  ) {
-  } else if (
-    await exists(`${outDir}/term_bank.ndjson`, {
-      baseDir: yomitanBaseDir,
-    })
-  ) {
-    d.filename = "";
+
+    out.push(...assets.map((a) => a.props));
+  }
+
+  for (const d of out) {
+    if (
+      await exists(`${d.outDir}/term_bank_1.json`, {
+        baseDir: yomitanBaseDir,
+      })
+    ) {
+      d.url = "";
+    } else if (
+      await exists(`${d.outDir}/.imported`, {
+        baseDir: yomitanBaseDir,
+      })
+    ) {
+      d.filename = "";
+    }
   }
 
   return out;
