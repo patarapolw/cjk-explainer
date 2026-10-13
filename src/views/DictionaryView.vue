@@ -6,6 +6,7 @@
           inputmode="search"
           name="term"
           v-model="q"
+          :placeholder="searchReading ? 'Term' : ''"
           autocapitalize="none"
           autocorrect="off"
           autocomplete="off"
@@ -22,7 +23,24 @@
           />
         </InputGroupAddon>
       </InputGroup>
+      <InputText
+        v-if="searchReading"
+        inputmode="search"
+        name="reading"
+        v-model="reading"
+        placeholder="Reading"
+        autocapitalize="none"
+        autocorrect="off"
+        autocomplete="off"
+        spellcheck="false"
+        fluid
+      />
       <nav>
+        <label v-if="settingsState.computed.lang.value !== 'ko-KR'">
+          <input type="checkbox" name="reading" v-model="searchReading" />
+          <span>Search reading</span>
+        </label>
+
         <label v-if="['', 'ja-JP'].includes(settingsState.computed.lang.value)">
           <input type="checkbox" name="autokana" v-model="autoKana" />
           <span>Auto-convert to Kana</span>
@@ -60,6 +78,7 @@ import { settingsState } from "../util/settings";
 import { readText } from "@tauri-apps/plugin-clipboard-manager";
 
 const q = ref("");
+const reading = ref("");
 const items = ref<{}[]>([]);
 
 const qStateOptions = ref([
@@ -68,6 +87,7 @@ const qStateOptions = ref([
 ]);
 const qState = ref<string | null>(null);
 
+const searchReading = ref(false);
 const autoKana = ref(settingsState.computed.lang.value === "ja-JP");
 
 const loading = ref(false);
@@ -81,13 +101,20 @@ const elScroller = useTemplateRef("scroller");
 let activeRequest: Promise<void> | null = null;
 let requestId = 0;
 
-watch([q, qState, settingsState.computed.lang], async () => {
+watch([q, qState, reading, settingsState.computed.lang], async () => {
   const id = ++requestId;
   await activeRequest;
   if (id !== requestId) return;
 
   nextOffset.value = 0;
   loadMore(true);
+});
+
+watch(settingsState.computed.lang, (lang) => {
+  if (lang === "ko-KR") {
+    reading.value = "";
+    searchReading.value = false;
+  }
 });
 
 let isWanakanaFinished = true;
@@ -135,7 +162,11 @@ function onScroll() {
 
 async function loadMore(isNew?: boolean) {
   if (loading.value || nextOffset.value === null) return;
-  if (!q.value) return;
+
+  let term = q.value.trimStart();
+  const termReading = searchReading.value ? reading.value.trim() : "";
+
+  if (!(term.trimEnd() || termReading)) return;
 
   loading.value = true;
 
@@ -144,7 +175,6 @@ async function loadMore(isNew?: boolean) {
   const offset = nextOffset.value;
   const oldItems = items.value;
 
-  let term = q.value.trimStart();
   let type = qState.value;
 
   if (type !== "exact" && term.includes(" ")) {
@@ -156,6 +186,7 @@ async function loadMore(isNew?: boolean) {
     try {
       const result = await searchDB.search({
         term,
+        reading: termReading,
         limit: 5,
         offset,
         type,
@@ -224,6 +255,10 @@ onBeforeUnmount(() => {
 
   nav * + * {
     margin-inline-start: 0.5em;
+  }
+
+  label {
+    white-space: nowrap;
   }
 }
 

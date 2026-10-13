@@ -78,12 +78,12 @@
           }}
         </span>
         <div>
-          <select v-model="settingsState.state.lang">
-            <option value="">Auto-detect</option>
-            <option value="ja-JP">ja-JP</option>
-            <option value="zh-CN">zh-CN</option>
-            <option value="ko-KR">ko-KR</option>
-          </select>
+          <Select
+            v-model="settingsState.state.lang"
+            :options="langSelectOptions"
+            option-label="label"
+            option-value="value"
+          />
         </div>
       </header>
       <RouterView />
@@ -127,6 +127,7 @@ import SidebarGroupContent from "primevue/sidebargroupcontent";
 import SidebarMenu from "primevue/sidebarmenu";
 import SidebarMenuItem from "primevue/sidebarmenuitem";
 import SidebarMenuButton from "primevue/sidebarmenubutton";
+import Select from "primevue/select";
 import Dialog from "primevue/dialog";
 
 import SidebarIcon from "@primeicons/vue/sidebar";
@@ -147,6 +148,13 @@ const elLoading = useTemplateRef("loading");
 const isMobile = ref(false);
 const navOpen = ref(false);
 const open = ref(false);
+
+const langSelectOptions = ref([
+  { label: "Auto-detect", value: "" },
+  { label: "ja-JP", value: "ja-JP" },
+  { label: "zh-CN", value: "zh-CN" },
+  { label: "ko-KR", value: "ko-KR" },
+]);
 
 let mql: MediaQueryList | null = null;
 function onMqlChange(event: MediaQueryListEvent) {

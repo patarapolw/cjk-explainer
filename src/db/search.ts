@@ -4,6 +4,14 @@ import Database from "@tauri-apps/plugin-sql";
 
 import { settingsState } from "../util/settings";
 
+interface SearchOpts {
+  term: string;
+  reading: string;
+  limit: number;
+  offset: number;
+  type: string | null;
+}
+
 class SearchDatabase {
   static async init() {
     while (true) {
@@ -31,14 +39,7 @@ class SearchDatabase {
 
   private constructor(public db: Database) {}
 
-  async search(opts: {
-    term: string;
-    limit: number;
-    offset: number;
-    type: string | null;
-  }): Promise<{ items: any[]; next: any }> {
-    if (!opts.term.length) return { items: [], next: null };
-
+  async search(opts: SearchOpts): Promise<{ items: any[]; next: any }> {
     const start = new Date();
     try {
       if (opts.type === "fts") {
@@ -50,7 +51,7 @@ class SearchDatabase {
       const timeTaken = (+new Date() - +start) / 1000;
       if (timeTaken > 0.1) {
         console.log(
-          `Searching [${opts.term}] takes ${timeTaken.toPrecision(2)} seconds`,
+          `Searching ${JSON.stringify(opts)} takes ${timeTaken.toPrecision(2)} seconds`,
         );
       }
     }
@@ -58,32 +59,36 @@ class SearchDatabase {
 
   private async search_main({
     term,
+    reading,
     limit,
     offset,
     type,
-  }: {
-    term: string;
-    limit: number;
-    offset: number;
-    type: string | null;
-  }) {
+  }: SearchOpts) {
     const [lang] = settingsState.computed.lang.value.split("-");
+    const isExact = type === "exact";
 
     let qTerm = term.toLocaleUpperCase();
-    if (!type && !qTerm.endsWith(" ")) {
-      qTerm += "*";
+    if (!isExact && !qTerm.endsWith(" ")) {
+      if (qTerm) qTerm += "*";
     }
 
-    const items = await this.db.select<{ id: number }[]>(
-      /* sql */ `
+    const params: string[] = [];
+    if (qTerm) params.push(qTerm);
+    if (reading) params.push(`reading:"${reading.replace(/"/g, " ")}"`);
+
+    const items = params.length
+      ? await this.db.select<{ id: number }[]>(
+          /* sql */ `
       SELECT * FROM term_search
       WHERE ${lang ? `term_${lang} IS NOT NULL` : "TRUE"}
-        AND term ${type ? "=" : "GLOB"} $1
+        ${qTerm ? `AND term ${isExact ? "=" : "GLOB"} $1` : ""}
+        ${reading ? `AND id IN (SELECT rowid FROM term_search_fts ($${params.length}))` : ""}
       ORDER BY score DESC
-      LIMIT $2 OFFSET $3
+      LIMIT ${limit + 1} OFFSET ${offset}
     `,
-      [qTerm, limit + 1, offset],
-    );
+          params,
+        )
+      : [];
 
     let next: null | number = null;
     if (items.length > limit) {
@@ -94,33 +99,32 @@ class SearchDatabase {
     return { items: await this.expandItems(items), next };
   }
 
-  private async search_fts({
-    term,
-    limit,
-    offset,
-  }: {
-    term: string;
-    limit: number;
-    offset: number;
-  }) {
+  private async search_fts({ term, reading, limit, offset }: SearchOpts) {
     const vLang = settingsState.computed.lang.value;
 
-    const kvs = (
-      await Promise.all(
-        (vLang ? [vLang] : ["ja-JP", "zh-CN", "ko-KR"]).map((lang) =>
-          invoke<string[]>("tokenize", {
-            lang,
-            text: term,
-          }).then((ts) => [lang.split("-")[0], ts.join(" ")]),
-        ),
-      )
-    ).filter(([, v]) => v);
+    const kvs = term.length
+      ? (
+          await Promise.all(
+            (vLang ? [vLang] : ["ja-JP", "zh-CN", "ko-KR"]).map((lang) =>
+              invoke<string[]>("tokenize", {
+                lang,
+                text: term,
+              }).then((ts) => [lang.split("-")[0], ts.join(" ")]),
+            ),
+          )
+        ).filter(([, v]) => v)
+      : [];
 
-    const qMatch = kvs
+    let qMatch = kvs
       .map(([k, v]) => `term_${k}:"${v.replace(/"/g, " ")}"`)
       .join(" OR ");
 
-    const items = kvs.length
+    if (reading) {
+      const qReading = `reading:"${reading.replace(/"/g, " ")}"`;
+      qMatch = qMatch ? `${qReading} (${qMatch})` : qReading;
+    }
+
+    const items = qMatch.length
       ? await this.db.select<{ id: number }[]>(
           /* sql */ `
         SELECT *, rowid id, rank FROM term_search_fts
