@@ -99,7 +99,7 @@ async function start() {
   }
 
   // **Parsing block
-  if (yomitan && !yomitan.parsed) {
+  if (yomitan) {
     unlisteners.value = [
       ...unlisteners.value,
       await listen<YomitanImportProgress>(

@@ -200,7 +200,8 @@ async function loadAll() {
   for (const d of dicts.sort((a, b) =>
     (a.yomitan?.lang || "").localeCompare(b.yomitan?.lang || ""),
   )) {
-    if (!d.yomitan) return;
+    if (!d.yomitan) continue;
+    if (d.yomitan?.parsed) continue;
     if (imp.lang !== d.yomitan.lang) {
       if (imp.dictPaths.length) toBeLoaded.value = [...toBeLoaded.value, imp];
       imp = { dictPaths: [], lang: d.yomitan.lang };

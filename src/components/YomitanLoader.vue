@@ -37,7 +37,7 @@ const isStarted = ref(false);
 
 const oldMessages = ref<string[]>([]);
 const message = ref(
-  `Waiting to import ${lang ? `(lang: ${lang})` : ""} to search.db`,
+  `Waiting to import ${lang ? `(${lang})` : ""} ${dictPaths.join(", ")} into search.db`,
 );
 const currentDict = ref("");
 
@@ -73,7 +73,7 @@ async function start() {
           currentDict.value = payload.dict;
         }
 
-        message.value = `Importing ${lang ? `(lang: ${lang})` : ""} ${payload.dict} into search.db`;
+        message.value = `Importing ${lang ? `(${lang})` : ""} ${payload.dict} into search.db`;
         percentage.value = Math.round((100 * payload.current) / payload.total);
       },
     ),

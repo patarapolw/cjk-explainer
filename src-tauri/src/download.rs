@@ -74,15 +74,23 @@ pub async fn download_and_unzip(
         if !r {
             return Ok(false);
         }
-    }
 
-    app.emit(
-        "unzip-progress",
-        UnzipProgress {
-            filename: filename.to_string(),
-            out_dir: out_dir.to_string(),
-        },
-    )?;
+        app.emit(
+            "unzip-progress",
+            UnzipProgress {
+                filename: filename.to_string(),
+                out_dir: out_dir.to_string(),
+            },
+        )?;
+    } else {
+        app.emit(
+            "unzip-progress",
+            UnzipProgress {
+                filename: format!("cached {filename}"),
+                out_dir: out_dir.to_string(),
+            },
+        )?;
+    }
 
     tokio::task::spawn_blocking(move || unzip_sync(zip_filepath, out_path)).await??;
 

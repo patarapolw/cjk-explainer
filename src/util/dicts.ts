@@ -115,13 +115,13 @@ export async function standardDicts(): Promise<DownloadingProps[]> {
       })
     ) {
       d.url = "";
+      // try to overwrite ${d.outDir}/content.db anyway if /term_bank_1.json still exists
     } else if (
       await exists(`${d.outDir}/content.db`, {
         baseDir: yomitanBaseDir,
       })
     ) {
-      d.url = "";
-      if (d.yomitan) d.yomitan.parsed = true;
+      d.filename = "";
     }
 
     if (
@@ -130,6 +130,7 @@ export async function standardDicts(): Promise<DownloadingProps[]> {
       })
     ) {
       d.filename = "";
+      if (d.yomitan) d.yomitan.parsed = true;
     }
   }
 
