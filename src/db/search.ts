@@ -150,7 +150,9 @@ class SearchDatabase {
         .join(" OR ");
       qReading =
         "reading:" + (segments.length > 1 ? `(${qReading})` : qReading);
-      qMatch = qMatch ? `${qReading} AND (${qMatch})` : qReading;
+
+      // Reading expansion can get large. Put term match first.
+      qMatch = qMatch ? `(${qMatch}) AND ${qReading}` : qReading;
     }
 
     const items = qMatch.length

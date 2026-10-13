@@ -50,6 +50,20 @@ export async function standardDicts(): Promise<DownloadingProps[]> {
         lang: "ko-KR",
       },
     ],
+    "MarvNC/cc-cedict-yomitan": [
+      {
+        dictName: "CC-CEDICT",
+        regex: /^CC-CEDICT\.zip$/,
+        lang: "zh-CN",
+      },
+    ],
+    "Lyroxide/yomitan-ko-dic": [
+      {
+        dictName: "KO-EN.KRDICT",
+        regex: /^KO-EN\.KRDICT\.zip$/,
+        lang: "ko-KR",
+      },
+    ],
   };
 
   for (const [user_repo, vs] of Object.entries(ghSources)) {
@@ -106,6 +120,23 @@ export async function standardDicts(): Promise<DownloadingProps[]> {
     }
 
     out.push(...assets.map((a) => a.props));
+  }
+
+  for (let lang of ["ja-JP", "ko-KR", "zh-CN"]) {
+    const L1 = lang.split("-")[0];
+    const L2 = "en";
+    const dictName = `wty-${L1}-${L2}`;
+    const filename = `${dictName}.zip`;
+
+    out.push({
+      filename,
+      outDir: `yomitan/${dictName}`,
+      url: `https://huggingface.co/datasets/daxida/wty-release/resolve/main/latest/dict/${L1}/${L2}/${filename}`,
+      yomitan: {
+        dictName,
+        lang,
+      },
+    });
   }
 
   for (const d of out) {
