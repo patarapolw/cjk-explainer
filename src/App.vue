@@ -209,7 +209,7 @@ async function loadAll() {
     (a.yomitan?.lang || "").localeCompare(b.yomitan?.lang || ""),
   )) {
     if (!d.yomitan) continue;
-    if (d.yomitan?.parsed) continue;
+    // if (d.yomitan?.parsed) continue;
     if (imp.lang !== d.yomitan.lang) {
       if (imp.dictPaths.length) toBeLoaded.value = [...toBeLoaded.value, imp];
       imp = { dictPaths: [], lang: d.yomitan.lang };

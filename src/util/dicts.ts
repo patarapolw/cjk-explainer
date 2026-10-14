@@ -29,8 +29,8 @@ export async function standardDicts(): Promise<DownloadingProps[]> {
   const ghSources: Record<string, IGhSource[]> = {
     "MarvNC/pixiv-yomitan": [
       {
-        dictName: "PixivLight",
-        regex: /^PixivLight_.+\.zip$/,
+        dictName: "Pixiv",
+        regex: /^Pixiv_.+\.zip$/,
       },
     ],
     "MarvNC/wikipedia-yomitan": [
@@ -155,13 +155,13 @@ export async function standardDicts(): Promise<DownloadingProps[]> {
       d.filename = "";
     }
 
+    const STATS_JSON = "stats.json";
     if (
-      await exists(`${d.outDir}/.imported`, {
+      await exists(`${d.outDir}/${STATS_JSON}`, {
         baseDir: yomitanBaseDir,
       })
     ) {
       d.filename = "";
-      if (d.yomitan) d.yomitan.parsed = true;
     }
   }
 

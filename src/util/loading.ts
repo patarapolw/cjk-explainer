@@ -7,7 +7,9 @@ export interface DownloadingProps {
   yomitan?: {
     dictName: string;
     lang?: string;
-    parsed?: boolean;
+    stats?: {
+      term: number;
+    };
   };
 }
 
