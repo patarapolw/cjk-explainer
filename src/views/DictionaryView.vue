@@ -82,24 +82,32 @@
 </template>
 
 <script setup lang="ts">
-import InputText from "primevue/inputtext";
-import SelectButton from "primevue/selectbutton";
+import Accordion from "primevue/accordion";
+import AccordionContent from "primevue/accordioncontent";
+import AccordionHeader from "primevue/accordionheader";
+import AccordionPanel from "primevue/accordionpanel";
 import InputGroup from "primevue/inputgroup";
 import InputGroupAddon from "primevue/inputgroupaddon";
-import Accordion from "primevue/accordion";
-import AccordionPanel from "primevue/accordionpanel";
-import AccordionHeader from "primevue/accordionheader";
-import AccordionContent from "primevue/accordioncontent";
+import InputText from "primevue/inputtext";
+import SelectButton from "primevue/selectbutton";
 
-import { nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
+import {
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  useTemplateRef,
+  watch,
+} from "vue";
 import { toKana } from "wanakana";
 
-import { ISearchTerm, ITerm, searchDB } from "../db/search";
-import { settingsState } from "../util/settings";
-import { readText } from "@tauri-apps/plugin-clipboard-manager";
-import Term from "../components/yomitan/Term.vue";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { appConfigDir, join } from "@tauri-apps/api/path";
+import { readText } from "@tauri-apps/plugin-clipboard-manager";
+import { useRoute, useRouter } from "vue-router";
+import Term from "../components/yomitan/Term.vue";
+import { ISearchTerm, ITerm, searchDB } from "../db/search";
+import { settingsState } from "../util/settings";
 
 const q = ref("");
 const reading = ref("");
@@ -125,6 +133,34 @@ const elScroller = useTemplateRef("scroller");
 
 let activeRequest: Promise<void> | null = null;
 let requestId = 0;
+
+const route = useRoute();
+const router = useRouter();
+
+async function setRouteQuery() {
+  const query = {
+    q: q.value,
+    reading: reading.value,
+    qState: qState.value || "",
+  };
+
+  const oldQuery = (() => {
+    const { q = "", reading = "", qState = "" } = route.query;
+    return { q, reading, qState };
+  })();
+
+  if (JSON.stringify(query) === JSON.stringify(oldQuery)) return;
+
+  await router.push({ query });
+}
+
+function loadFromRouteQuery() {
+  if (!route.query.q && !route.query.reading) return;
+
+  q.value = String(route.query.q || "");
+  reading.value = String(route.query.reading || "");
+  qState.value = String(route.query.qState || "") || null;
+}
 
 watch([q, qState, reading, settingsState.computed.lang], async () => {
   const id = ++requestId;
@@ -251,13 +287,17 @@ async function getAssetSrc(dict: string, src: string) {
   return convertFileSrc(await join(await appConfigDir(), dict, src));
 }
 
-function onAnchorClicked(href: string) {
+async function onAnchorClicked(href: string) {
   const params = new URLSearchParams(href.slice(1)); // drop the '?'
   const query = params.get("query");
   if (!query) return;
 
+  await setRouteQuery();
+
   qState.value = "exact";
   q.value = query;
+
+  await setRouteQuery();
 }
 
 function toggleClipboardMonitor() {
@@ -283,11 +323,23 @@ function toggleClipboardMonitor() {
   }
 }
 
+const routerListener = ref<() => void>();
+
+onMounted(() => {
+  loadFromRouteQuery();
+
+  routerListener.value = router.afterEach(() => {
+    loadFromRouteQuery();
+  });
+});
+
 onBeforeUnmount(() => {
   if (clipboardInterval.value) {
     clearInterval(clipboardInterval.value);
     clipboardInterval.value = 0;
   }
+
+  routerListener.value?.();
 });
 </script>
 

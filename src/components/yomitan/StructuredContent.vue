@@ -126,8 +126,6 @@ const imgAttrs = computed(() => {
   if (node.title) attrs.title = node.title;
   if (node.alt) attrs.alt = node.alt;
 
-  console.log(node.sizeUnits);
-
   // --- width / height ---
   const units: "px" | "em" = node.sizeUnits === "em" ? "em" : "px";
   const isValid = (n: unknown): n is number =>

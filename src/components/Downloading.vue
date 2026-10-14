@@ -23,12 +23,12 @@ import ProgressBar from "primevue/progressbar";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
+import { YomitanImportProgress } from "../util/dicts";
 import {
   DownloadingProps,
   DownloadUrlProgress,
   UnzipProgress,
 } from "../util/loading";
-import { YomitanImportProgress } from "../util/dicts";
 
 const props = defineProps<DownloadingProps>();
 

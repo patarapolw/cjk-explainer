@@ -45,13 +45,13 @@
 <script setup lang="ts">
 import { onMounted, ref, useTemplateRef } from "vue";
 
-import Popover from "primevue/popover";
 import Button from "primevue/button";
+import Popover from "primevue/popover";
 
+import { getExplanation, saveExplanation } from "../db/explainer";
 import { LLMstream } from "../util/llm";
 import { markdownIt } from "../util/markdown";
 import { explainerPrompt, settingsState } from "../util/settings";
-import { getExplanation, saveExplanation } from "../db/explainer";
 
 const { text, lang } = defineProps<{
   text: string;

@@ -41,9 +41,9 @@ const definitions = JSON.parse(props.row.glossary);
 <style scoped>
 .term :deep(img) {
   max-width: 100%;
-  height: auto;
-  /* Guard against dictionaries that ship tiny/hidden placeholders */
-  width: 1em;
   height: 1em;
+  /* Guard against dictionaries that ship tiny/hidden placeholders */
+  min-width: 1em;
+  min-height: 1em;
 }
 </style>

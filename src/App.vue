@@ -112,35 +112,35 @@ import {
   watch,
 } from "vue";
 
-import SidebarLayout from "primevue/sidebarlayout";
-import SidebarBackdrop from "primevue/sidebarbackdrop";
+import Dialog from "primevue/dialog";
+import Select from "primevue/select";
 import Sidebar from "primevue/sidebar";
-import SidebarMain from "primevue/sidebarmain";
-import SidebarTrigger from "primevue/sidebartrigger";
-import SidebarSpacer from "primevue/sidebarspacer";
 import SidebarAside from "primevue/sidebaraside";
-import SidebarPanel from "primevue/sidebarpanel";
+import SidebarBackdrop from "primevue/sidebarbackdrop";
 import SidebarContent from "primevue/sidebarcontent";
 import SidebarFooter from "primevue/sidebarfooter";
 import SidebarGroup from "primevue/sidebargroup";
 import SidebarGroupContent from "primevue/sidebargroupcontent";
+import SidebarLayout from "primevue/sidebarlayout";
+import SidebarMain from "primevue/sidebarmain";
 import SidebarMenu from "primevue/sidebarmenu";
-import SidebarMenuItem from "primevue/sidebarmenuitem";
 import SidebarMenuButton from "primevue/sidebarmenubutton";
-import Select from "primevue/select";
-import Dialog from "primevue/dialog";
+import SidebarMenuItem from "primevue/sidebarmenuitem";
+import SidebarPanel from "primevue/sidebarpanel";
+import SidebarSpacer from "primevue/sidebarspacer";
+import SidebarTrigger from "primevue/sidebartrigger";
 
+import CogIcon from "@primeicons/vue/cog";
 import SidebarIcon from "@primeicons/vue/sidebar";
 import TextColorIcon from "@primeicons/vue/text-color";
-import CogIcon from "@primeicons/vue/cog";
 
 import Downloading from "./components/Downloading.vue";
 import YomitanLoader from "./components/YomitanLoader.vue";
 
-import { makeLinderaDownloadList } from "./util/tokenize";
-import { toBeLoaded, YomitanImportProps } from "./util/loading.ts";
 import { standardDicts } from "./util/dicts.ts";
+import { toBeLoaded, YomitanImportProps } from "./util/loading.ts";
 import { settingsState } from "./util/settings.ts";
+import { makeLinderaDownloadList } from "./util/tokenize";
 
 // array of refs, or undefined
 const elLoading = useTemplateRef("loading");

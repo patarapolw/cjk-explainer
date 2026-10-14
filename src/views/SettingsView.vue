@@ -61,8 +61,8 @@
 </template>
 
 <script setup lang="ts">
-import InputText from "primevue/inputtext";
 import InputPassword from "primevue/inputpassword";
+import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 
 import { onBeforeUnmount, onMounted } from "vue";

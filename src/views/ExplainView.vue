@@ -35,10 +35,10 @@
 </template>
 
 <script setup lang="ts">
-import ToggleSwitch from "primevue/toggleswitch";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
 import Textarea from "primevue/textarea";
+import ToggleSwitch from "primevue/toggleswitch";
 
 import IconBolt from "@primeicons/vue/bolt";
 
