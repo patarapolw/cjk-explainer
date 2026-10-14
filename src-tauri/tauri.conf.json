@@ -19,7 +19,11 @@
       }
     ],
     "security": {
-      "csp": null
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$APPCONFIG/yomitan/*/**/*"]
+      },
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost"
     }
   },
   "bundle": {

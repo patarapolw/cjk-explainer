@@ -58,9 +58,25 @@
       </nav>
     </header>
     <div class="scroller" ref="scroller" @scroll.passive="onScroll">
-      <div v-for="(it, i) in items" :key="i">
-        <pre>{{ JSON.stringify({ it, i }, null, 2) }}</pre>
-      </div>
+      <Accordion multiple v-model:value="openedItems">
+        <AccordionPanel v-for="it in items" :key="it.id" :value="it.id">
+          <AccordionHeader>
+            <span v-if="!openedItems.includes(it.id)">
+              {{ it.entries[0]?.term || it.term }}
+            </span>
+          </AccordionHeader>
+          <AccordionContent>
+            <Term
+              v-for="(ent, j) in it.entries"
+              :key="j"
+              :row="ent"
+              :dictionary="ent.dict_path"
+              :get-asset-src="getAssetSrc"
+              @anchor-clicked="onAnchorClicked"
+            />
+          </AccordionContent>
+        </AccordionPanel>
+      </Accordion>
     </div>
   </main>
 </template>
@@ -70,17 +86,25 @@ import InputText from "primevue/inputtext";
 import SelectButton from "primevue/selectbutton";
 import InputGroup from "primevue/inputgroup";
 import InputGroupAddon from "primevue/inputgroupaddon";
+import Accordion from "primevue/accordion";
+import AccordionPanel from "primevue/accordionpanel";
+import AccordionHeader from "primevue/accordionheader";
+import AccordionContent from "primevue/accordioncontent";
 
 import { nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
 import { toKana } from "wanakana";
 
-import { searchDB } from "../db/search";
+import { ISearchTerm, ITerm, searchDB } from "../db/search";
 import { settingsState } from "../util/settings";
 import { readText } from "@tauri-apps/plugin-clipboard-manager";
+import Term from "../components/yomitan/Term.vue";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { appConfigDir, join } from "@tauri-apps/api/path";
 
 const q = ref("");
 const reading = ref("");
-const items = ref<{}[]>([]);
+const items = ref<(ISearchTerm & { entries: ITerm[] })[]>([]);
+const openedItems = ref<number[]>([]);
 
 const qStateOptions = ref([
   { label: "~", value: "fts" },
@@ -201,6 +225,11 @@ async function loadMore(isNew?: boolean) {
       if (isNew && elScroller.value) {
         elScroller.value.scrollTop = 0;
       }
+
+      openedItems.value = [
+        ...openedItems.value,
+        ...result.items.map((r) => r.id),
+      ];
     } finally {
       loading.value = false;
     }
@@ -216,6 +245,19 @@ async function loadMore(isNew?: boolean) {
     await nextTick();
     onScroll();
   }
+}
+
+async function getAssetSrc(dict: string, src: string) {
+  return convertFileSrc(await join(await appConfigDir(), dict, src));
+}
+
+function onAnchorClicked(href: string) {
+  const params = new URLSearchParams(href.slice(1)); // drop the '?'
+  const query = params.get("query");
+  if (!query) return;
+
+  qState.value = "exact";
+  q.value = query;
 }
 
 function toggleClipboardMonitor() {

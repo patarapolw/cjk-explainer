@@ -12,6 +12,26 @@ interface SearchOpts {
   type: string | null;
 }
 
+export interface ISearchTerm {
+  id: number;
+  term: string;
+}
+
+export interface ITerm {
+  dict_id: number;
+  dict_path: string;
+  term_id: number;
+
+  term: string;
+  reading: string;
+  def_tags: string;
+  rules: string;
+  score: number | null;
+  glossary: string;
+  sequence: number | null;
+  tags: string;
+}
+
 class SearchDatabase {
   static async init() {
     while (true) {
@@ -39,7 +59,7 @@ class SearchDatabase {
 
   private constructor(public db: Database) {}
 
-  async search(opts: SearchOpts): Promise<{ items: any[]; next: any }> {
+  async search(opts: SearchOpts) {
     const start = new Date();
     try {
       if (opts.type === "fts") {
@@ -93,7 +113,7 @@ class SearchDatabase {
     }
 
     const items = params.length
-      ? await this.db.select<{ id: number }[]>(
+      ? await this.db.select<ISearchTerm[]>(
           /* sql */ `
       SELECT * FROM term_search
       WHERE ${lang ? `term_${lang} IS NOT NULL` : "TRUE"}
@@ -156,7 +176,7 @@ class SearchDatabase {
     }
 
     const items = qMatch.length
-      ? await this.db.select<{ id: number }[]>(
+      ? await this.db.select<ISearchTerm[]>(
           /* sql */ `
         SELECT *, rowid id, rank FROM term_search_fts
         WHERE term_search_fts MATCH $1
@@ -176,10 +196,10 @@ class SearchDatabase {
     return { items: await this.expandItems(items), next };
   }
 
-  private async expandItems(rawItems: { id: number }[]) {
+  private async expandItems(rawItems: ISearchTerm[]) {
     if (!rawItems.length) return [];
 
-    const sidToRefs = new Map<number, { dict_id: number; term_id: number }[]>();
+    const sidToRefs = new Map<number, ITerm[]>();
 
     const sids = rawItems.map((it) => it.id);
     for (const { dict_id, term_id, search_id } of await this.db.select<
@@ -190,11 +210,11 @@ class SearchDatabase {
       sids,
     )) {
       const refs = sidToRefs.get(search_id) || [];
-      refs.push({ dict_id, term_id });
+      refs.push({ dict_id, term_id } as ITerm);
       sidToRefs.set(search_id, refs);
     }
 
-    const entMap = new Map<string, { dict_id: number; term_id: number }>();
+    const entMap = new Map<string, ITerm>();
 
     for (const ent of await this.refsToEntries(
       [...sidToRefs.values()].flat(),
@@ -222,7 +242,7 @@ class SearchDatabase {
 
   private async refsToEntries(
     refs: { dict_id: number; term_id: number }[],
-  ): Promise<{ dict_id: number; term_id: number }[]> {
+  ): Promise<ITerm[]> {
     if (!refs.length) return [];
 
     const dictTermIdsMap = new Map<number, Set<number>>();
@@ -234,8 +254,7 @@ class SearchDatabase {
     }
 
     const dictIds = [...dictTermIdsMap.keys()];
-    const out: { dict_id: number; term_id: number; score: number | null }[] =
-      [];
+    const out: ITerm[] = [];
 
     for (const r of await this.db.select<{ id: number; path: string }[]>(
       `SELECT id, "path" FROM "index" WHERE id IN (${dictIds.map((_, i) => `$${i + 1}`)})`,
@@ -246,13 +265,13 @@ class SearchDatabase {
         (await Database.load(`sqlite:${r.path}/content.db`));
 
       const termIds = Array.from(dictTermIdsMap.get(r.id) || []);
-      const terms = await dictDB.select<
-        { term_id: number; score: number | null }[]
-      >(
+      const terms = await dictDB.select<Omit<ITerm, "dict_id" | "dict_path">[]>(
         `SELECT rowid term_id, * FROM term WHERE rowid IN (${termIds.map((_, i) => `$${i + 1}`)})`,
         termIds,
       );
-      out.push(...terms.map((t) => ({ dict_id: r.id, ...t })));
+      out.push(
+        ...terms.map((t) => ({ dict_id: r.id, dict_path: r.path, ...t })),
+      );
     }
 
     return out;
