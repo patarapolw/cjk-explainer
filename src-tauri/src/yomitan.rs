@@ -170,6 +170,27 @@ pub async fn yomitan_import(
 }
 
 #[tauri::command]
+pub async fn yomitan_cleanup(app: AppHandle, state: State<'_, AppState>) -> Result<(), AppError> {
+    // adapted from https://github.com/tauri-apps/plugins-workspace/blob/v2/plugins/sql/src/wrapper.rs#91
+    // plugin says app_config_dir()
+    let app_config_dir = app.path().app_config_dir()?;
+
+    let mut yomi = YomitanSearch::new(app_config_dir.join("search.db"), vec![]).await?;
+    yomi.cleanup(
+        &state.tokenizer_mapper,
+        &(|p| {
+            app.emit("yomitan-init-progress", p).unwrap();
+        }),
+        &(|p| {
+            app.emit("yomitan-delete-progress", p).unwrap();
+        }),
+    )
+    .await?;
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn normalize_reading(reading: &str) -> Vec<String> {
     expand_pinyin(reading)
 }

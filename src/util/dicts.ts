@@ -162,6 +162,7 @@ export async function standardDicts(): Promise<DownloadingProps[]> {
       })
     ) {
       d.filename = "";
+      if (d.yomitan) d.yomitan.parsed = true;
     }
   }
 

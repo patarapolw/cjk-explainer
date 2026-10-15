@@ -43,6 +43,7 @@ pub fn run() {
             yomitan::yomitan_parse_dir,
             yomitan::yomitan_make_ndjson,
             yomitan::yomitan_import,
+            yomitan::yomitan_cleanup,
             yomitan::normalize_reading,
         ])
         .run(tauri::generate_context!())

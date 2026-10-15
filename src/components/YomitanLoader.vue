@@ -77,12 +77,20 @@ async function start() {
         percentage.value = Math.round((100 * payload.current) / payload.total);
       },
     ),
+    await listen<string>("yomitan-delete-progress", ({ payload }) => {
+      message.value = `Cleaning up search.db: ${payload}`;
+      percentage.value = 0;
+    }),
   ];
 
-  await invoke("yomitan_import", {
-    dictPaths,
-    lang,
-  });
+  if (dictPaths.length) {
+    await invoke("yomitan_import", {
+      dictPaths,
+      lang,
+    });
+  } else {
+    await invoke("yomitan_cleanup");
+  }
 
   unlisteners.value.map((u) => u());
   unlisteners.value = [];
