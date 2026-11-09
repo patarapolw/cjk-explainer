@@ -1,5 +1,5 @@
 use tauri::State;
-use yomitan_parser::{error::YomitanError, tokenize::Lang};
+use yomitan_parser::{error::YomitanError, pinyin::expand_pinyin, tokenize::Lang};
 
 use crate::{AppState, error::AppError};
 
@@ -31,4 +31,9 @@ pub async fn tokenize(
             text,
         )
         .await?)
+}
+
+#[tauri::command]
+pub fn normalize_reading(reading: &str) -> Vec<String> {
+    expand_pinyin(reading)
 }

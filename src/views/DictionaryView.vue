@@ -101,8 +101,6 @@ import {
 } from "vue";
 import { toKana } from "wanakana";
 
-import { convertFileSrc } from "@tauri-apps/api/core";
-import { appConfigDir, join } from "@tauri-apps/api/path";
 import { readText } from "@tauri-apps/plugin-clipboard-manager";
 import { useRoute, useRouter } from "vue-router";
 import Term from "../components/yomitan/Term.vue";
@@ -284,7 +282,7 @@ async function loadMore(isNew?: boolean) {
 }
 
 async function getAssetSrc(dict: string, src: string) {
-  return convertFileSrc(await join(await appConfigDir(), dict, src));
+  return await searchDB.assetSrc(dict, src);
 }
 
 async function onAnchorClicked(href: string) {

@@ -23,6 +23,18 @@
     </fieldset>
 
     <fieldset class="fieldset">
+      <legend>Dictionary</legend>
+      <label class="row">
+        <span class="label-header">Server URL: </span>
+        <InputText
+          class="flex-grow"
+          v-model="settingsState.state.dictApiURL"
+          :placeholder="settingsState.default.dictApiURL"
+        />
+      </label>
+    </fieldset>
+
+    <fieldset class="fieldset">
       <legend>Supabase</legend>
       <label class="row">
         <span class="label-header">Server URL: </span>

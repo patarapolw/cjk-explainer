@@ -1,8 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
-import { BaseDirectory, exists } from "@tauri-apps/plugin-fs";
-import Database from "@tauri-apps/plugin-sql";
+import { fetch } from "@tauri-apps/plugin-http";
 
 import { settingsState } from "../util/settings";
+
+/**
+ * Dictionary search is served by the cjk-dict worker (Cloudflare D1 + R2).
+ * The client still tokenizes the query and expands pinyin locally (lindera + yomitan-parser),
+ * then sends the result to the worker.
+ *
+ * @see https://github.com/patarapolw/cjk-dict
+ */
 
 interface SearchOpts {
   term: string;
@@ -19,6 +26,7 @@ export interface ISearchTerm {
 
 export interface ITerm {
   dict_id: number;
+  /** dictionary name on the server */
   dict_path: string;
   term_id: number;
 
@@ -32,44 +40,68 @@ export interface ITerm {
   tags: string;
 }
 
+export interface IDict {
+  id: number;
+  name: string;
+  title: string;
+  revision: string | null;
+  L1: string | null;
+  L2: string | null;
+  term_count: number;
+}
+
+type SearchResult = {
+  items: (ISearchTerm & { entries: ITerm[] })[];
+  next: number | null;
+};
+
+const ALL_LANGS = ["ja-JP", "zh-CN", "ko-KR"];
+
 class SearchDatabase {
-  static async init() {
-    while (true) {
-      if (await exists("search.db", { baseDir: BaseDirectory.AppConfig })) {
-        break;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
+  private assetCache = new Map<string, Promise<string>>();
 
-    let db: Database;
-    while (true) {
-      try {
-        db = await Database.load("sqlite:search.db");
-        break;
-      } catch (e) {
-        console.error(e);
-      }
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+  get baseURL() {
+    const url = settingsState.computed.dictApiURL.value;
+    if (!url) {
+      throw new Error("Dictionary server URL is not set (Settings → Dictionary)");
     }
-
-    return new SearchDatabase(db);
+    return url.replace(/\/+$/, "");
   }
 
-  public dictMap = new Map<string, Database>();
+  private async request<T>(path: string, init?: RequestInit): Promise<T> {
+    const r = await fetch(this.baseURL + path, init);
+    if (!r.ok) {
+      throw new Error(`${init?.method || "GET"} ${path}: ${r.status} ${await r.text()}`);
+    }
+    return r.json();
+  }
 
-  private constructor(public db: Database) {}
+  async dicts() {
+    return this.request<IDict[]>("/dicts");
+  }
 
-  async search(opts: SearchOpts) {
+  async search(opts: SearchOpts): Promise<SearchResult> {
     const start = new Date();
     try {
-      if (opts.type === "fts") {
-        return await this.search_fts(opts);
-      } else {
-        return await this.search_main(opts);
-      }
+      const lang = settingsState.computed.lang.value;
+      const body = {
+        type: opts.type,
+        lang,
+        term: opts.term,
+        readings: await this.readings(opts.reading, lang),
+        tokens: opts.type === "fts" ? await this.tokens(opts.term, lang) : undefined,
+        limit: opts.limit,
+        offset: opts.offset,
+      };
+
+      return await this.request<SearchResult>("/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
     } finally {
       const timeTaken = (+new Date() - +start) / 1000;
-      if (timeTaken > 0.1) {
+      if (timeTaken > 0.5) {
         console.log(
           `Searching ${JSON.stringify(opts)} takes ${timeTaken.toPrecision(2)} seconds`,
         );
@@ -77,205 +109,47 @@ class SearchDatabase {
     }
   }
 
-  private async search_main({
-    term,
-    reading,
-    limit,
-    offset,
-    type,
-  }: SearchOpts) {
-    const [lang] = settingsState.computed.lang.value.split("-");
-    const isExact = type === "exact";
-
-    let qTerm = term.toLocaleUpperCase();
-    if (!isExact && !qTerm.endsWith(" ")) {
-      if (qTerm) qTerm += "*";
+  /** Object URL for a file inside a dictionary zip (images in structured content). */
+  assetSrc(dict: string, path: string): Promise<string> {
+    const key = `${dict}\n${path}`;
+    let p = this.assetCache.get(key);
+    if (!p) {
+      const url = `${this.baseURL}/dicts/${encodeURIComponent(dict)}/assets/${path
+        .split("/")
+        .map(encodeURIComponent)
+        .join("/")}`;
+      p = fetch(url)
+        .then((r) => {
+          if (!r.ok) throw new Error(`GET ${url}: ${r.status}`);
+          return r.blob();
+        })
+        .then((b) => URL.createObjectURL(b));
+      p.catch(() => this.assetCache.delete(key));
+      this.assetCache.set(key, p);
     }
-
-    const params: string[] = [];
-    if (qTerm) params.push(qTerm);
-    if (reading) {
-      let segments = [reading];
-      if (!lang || lang == "zh-CN") {
-        const newSegments = await invoke<string[]>("normalize_reading", {
-          reading,
-        });
-        if (newSegments.length) {
-          segments = newSegments;
-        }
-      }
-      let qReading = segments
-        .map((s) => `"${s.replace(/"/g, " ")}"`)
-        .join(" OR ");
-      qReading =
-        "reading:" + (segments.length > 1 ? `(${qReading})` : qReading);
-      params.push(qReading);
-    }
-
-    const items = params.length
-      ? await this.db.select<ISearchTerm[]>(
-          /* sql */ `
-      SELECT * FROM term_search
-      WHERE ${lang ? `term_${lang} IS NOT NULL` : "TRUE"}
-        ${qTerm ? `AND term ${isExact ? "=" : "GLOB"} $1` : ""}
-        ${reading ? `AND id IN (SELECT rowid FROM term_search_fts ($${params.length}))` : ""}
-      ORDER BY score DESC
-      LIMIT ${limit + 1} OFFSET ${offset}
-    `,
-          params,
-        )
-      : [];
-
-    let next: null | number = null;
-    if (items.length > limit) {
-      items.pop();
-      next = offset + limit;
-    }
-
-    return { items: await this.expandItems(items), next };
+    return p;
   }
 
-  private async search_fts({ term, reading, limit, offset }: SearchOpts) {
-    const lang = settingsState.computed.lang.value;
-
-    const kvs = term.length
-      ? (
-          await Promise.all(
-            (lang ? [lang] : ["ja-JP", "zh-CN", "ko-KR"]).map((subLang) =>
-              invoke<string[]>("tokenize", {
-                lang: subLang,
-                text: term,
-              }).then((ts) => [subLang.split("-")[0], ts.join(" ")]),
-            ),
-          )
-        ).filter(([, v]) => v)
-      : [];
-
-    let qMatch = kvs
-      .map(([k, v]) => `term_${k}:"${v.replace(/"/g, " ")}"`)
-      .join(" OR ");
-
-    if (reading) {
-      let segments = [reading];
-      if (!lang || lang == "zh-CN") {
-        const newSegments = await invoke<string[]>("normalize_reading", {
-          reading,
-        });
-        if (newSegments.length) {
-          segments = newSegments;
-        }
-      }
-      let qReading = segments
-        .map((s) => `"${s.replace(/"/g, " ")}"`)
-        .join(" OR ");
-      qReading =
-        "reading:" + (segments.length > 1 ? `(${qReading})` : qReading);
-
-      // Reading expansion can get large. Put term match first.
-      qMatch = qMatch ? `(${qMatch}) AND ${qReading}` : qReading;
+  private async readings(reading: string, lang: string) {
+    if (!reading) return [];
+    if (!lang || lang === "zh-CN") {
+      const segments = await invoke<string[]>("normalize_reading", { reading });
+      if (segments.length) return segments;
     }
-
-    const items = qMatch.length
-      ? await this.db.select<ISearchTerm[]>(
-          /* sql */ `
-        SELECT *, rowid id, rank FROM term_search_fts
-        WHERE term_search_fts MATCH $1
-        ORDER BY rank
-        LIMIT $2 OFFSET $3
-    `,
-          [qMatch, limit + 1, offset],
-        )
-      : [];
-
-    let next: null | number = null;
-    if (items.length > limit) {
-      items.pop();
-      next = offset + limit;
-    }
-
-    return { items: await this.expandItems(items), next };
+    return [reading];
   }
 
-  private async expandItems(rawItems: ISearchTerm[]) {
-    if (!rawItems.length) return [];
-
-    const sidToRefs = new Map<number, ITerm[]>();
-
-    const sids = rawItems.map((it) => it.id);
-    for (const { dict_id, term_id, search_id } of await this.db.select<
-      { dict_id: number; term_id: number; search_id: number }[]
-    >(
-      `SELECT dict_id, term_id, search_id
-      FROM term_link WHERE search_id IN (${sids.map((_, i) => `$${i + 1}`)})`,
-      sids,
-    )) {
-      const refs = sidToRefs.get(search_id) || [];
-      refs.push({ dict_id, term_id } as ITerm);
-      sidToRefs.set(search_id, refs);
-    }
-
-    const entMap = new Map<string, ITerm>();
-
-    for (const ent of await this.refsToEntries(
-      [...sidToRefs.values()].flat(),
-    )) {
-      entMap.set(
-        JSON.stringify({ dict_id: ent.dict_id, term_id: ent.term_id }),
-        ent,
-      );
-    }
-
-    return rawItems.map((it) => {
-      const entries = sidToRefs.get(it.id) || [];
-
-      return {
-        ...it,
-        entries: entries.map(
-          (ent) =>
-            entMap.get(
-              JSON.stringify({ dict_id: ent.dict_id, term_id: ent.term_id }),
-            ) || ent,
+  private async tokens(term: string, lang: string) {
+    if (!term) return {};
+    const kvs = await Promise.all(
+      (lang ? [lang] : ALL_LANGS).map((subLang) =>
+        invoke<string[]>("tokenize", { lang: subLang, text: term }).then(
+          (ts) => [subLang.split("-")[0], ts.join(" ")] as const,
         ),
-      };
-    });
-  }
-
-  private async refsToEntries(
-    refs: { dict_id: number; term_id: number }[],
-  ): Promise<ITerm[]> {
-    if (!refs.length) return [];
-
-    const dictTermIdsMap = new Map<number, Set<number>>();
-
-    for (const r of refs) {
-      const termIds = dictTermIdsMap.get(r.dict_id) || new Set();
-      termIds.add(r.term_id);
-      dictTermIdsMap.set(r.dict_id, termIds);
-    }
-
-    const dictIds = [...dictTermIdsMap.keys()];
-    const out: ITerm[] = [];
-
-    for (const r of await this.db.select<{ id: number; path: string }[]>(
-      `SELECT id, "path" FROM "index" WHERE id IN (${dictIds.map((_, i) => `$${i + 1}`)})`,
-      dictIds,
-    )) {
-      const dictDB =
-        this.dictMap.get(r.path) ||
-        (await Database.load(`sqlite:${r.path}/content.db`));
-
-      const termIds = Array.from(dictTermIdsMap.get(r.id) || []);
-      const terms = await dictDB.select<Omit<ITerm, "dict_id" | "dict_path">[]>(
-        `SELECT rowid term_id, * FROM term WHERE rowid IN (${termIds.map((_, i) => `$${i + 1}`)})`,
-        termIds,
-      );
-      out.push(
-        ...terms.map((t) => ({ dict_id: r.id, dict_path: r.path, ...t })),
-      );
-    }
-
-    return out;
+      ),
+    );
+    return Object.fromEntries(kvs.filter(([, v]) => v));
   }
 }
 
-export const searchDB = await SearchDatabase.init();
+export const searchDB = new SearchDatabase();

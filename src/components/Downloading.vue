@@ -23,7 +23,6 @@ import ProgressBar from "primevue/progressbar";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
-import { YomitanImportProgress } from "../util/dicts";
 import {
   DownloadingProps,
   DownloadUrlProgress,
@@ -63,7 +62,7 @@ async function start() {
   isStarted.value = true;
 
   // **Downloading block
-  const { url, filename, outDir, yomitan } = props;
+  const { url, filename, outDir } = props;
 
   unlisteners.value = [
     ...unlisteners.value,
@@ -89,34 +88,11 @@ async function start() {
       url,
       filename,
       outDir,
-      isSqlite: !!yomitan,
     });
   } else {
     await invoke<boolean>("download_url", {
       url,
       filename,
-    });
-  }
-
-  // **Parsing block
-  if (yomitan) {
-    unlisteners.value = [
-      ...unlisteners.value,
-      await listen<YomitanImportProgress>(
-        "yomitan-import-progress",
-        ({ payload }) => {
-          message.value = `Importing ${payload.bank} from ${outDir}`;
-          progressMessage.value = `${payload.current.toLocaleString()} / ${payload.total.toLocaleString()}`;
-          percentage.value = Math.round(
-            (100 * payload.current) / payload.total,
-          );
-        },
-      ),
-    ];
-
-    await invoke("yomitan_parse_dir", {
-      rootDir: outDir,
-      // yomitan,
     });
   }
 

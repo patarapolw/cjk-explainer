@@ -6,7 +6,6 @@ mod download;
 mod error;
 mod shared;
 mod tokenize;
-mod yomitan;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 struct AppState {
@@ -39,12 +38,7 @@ pub fn run() {
             download::download_and_unzip,
             tokenize::segment,
             tokenize::tokenize,
-            yomitan::yomitan_parse_zip,
-            yomitan::yomitan_parse_dir,
-            yomitan::yomitan_make_ndjson,
-            yomitan::yomitan_import,
-            yomitan::yomitan_cleanup,
-            yomitan::normalize_reading,
+            tokenize::normalize_reading,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

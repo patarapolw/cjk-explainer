@@ -23,6 +23,9 @@
         },
         {
           "url": "https://storage-worker.*.workers.dev"
+        },
+        {
+          "url": "https://*.workers.dev/*"
         }
       ]
     },

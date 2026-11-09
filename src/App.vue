@@ -93,10 +93,9 @@
     <div class="modal-content">
       <template
         v-for="d in toBeLoaded"
-        :key="'filename' in d ? d.filename : d.lang || ''"
+        :key="d.filename"
       >
-        <YomitanLoader ref="loading" v-if="'dictPaths' in d" v-bind="d" />
-        <Downloading ref="loading" v-else v-bind="d" />
+        <Downloading ref="loading" v-bind="d" />
       </template>
     </div>
   </Dialog>
@@ -135,10 +134,8 @@ import SidebarIcon from "@primeicons/vue/sidebar";
 import TextColorIcon from "@primeicons/vue/text-color";
 
 import Downloading from "./components/Downloading.vue";
-import YomitanLoader from "./components/YomitanLoader.vue";
 
-import { standardDicts } from "./util/dicts.ts";
-import { toBeLoaded, YomitanImportProps } from "./util/loading.ts";
+import { toBeLoaded } from "./util/loading.ts";
 import { settingsState } from "./util/settings.ts";
 import { makeLinderaDownloadList } from "./util/tokenize";
 
@@ -193,32 +190,12 @@ watch(toBeLoaded, () => {
 });
 
 async function loadAll() {
-  const dicts = await standardDicts();
-
+  // lindera dictionaries for client-side tokenizing (search queries, sentence splitting).
+  // Yomitan dictionaries are served by the cjk-dict worker; nothing to import locally.
   toBeLoaded.value = [
     ...toBeLoaded.value,
     ...(await makeLinderaDownloadList(["unidic", "ko-dic", "cc-cedict"])),
-    ...dicts.filter((d) => d.filename),
   ];
-
-  let imp: YomitanImportProps = {
-    dictPaths: [],
-  };
-
-  for (const d of dicts.sort((a, b) =>
-    (a.yomitan?.lang || "").localeCompare(b.yomitan?.lang || ""),
-  )) {
-    if (!d.yomitan) continue;
-    if (d.yomitan?.parsed) continue;
-
-    if (imp.lang !== d.yomitan.lang) {
-      if (imp.dictPaths.length) toBeLoaded.value = [...toBeLoaded.value, imp];
-      imp = { dictPaths: [], lang: d.yomitan.lang };
-    }
-    imp.dictPaths.push(d.outDir!);
-  }
-
-  toBeLoaded.value = [...toBeLoaded.value, imp];
 }
 </script>
 
