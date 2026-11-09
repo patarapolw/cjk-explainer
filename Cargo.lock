@@ -636,7 +636,6 @@ dependencies = [
 name = "cjk-explainer"
 version = "0.1.0"
 dependencies = [
- "futures",
  "serde",
  "serde_json",
  "tauri",
@@ -1531,21 +1530,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "futures"
-version = "0.3.34"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a31d2a3fbaaeb2af2368bbdd904aa8e812d3c04a1ee10d3171f52d556e5d0a3"
-dependencies = [
- "futures-channel",
- "futures-core",
- "futures-executor",
- "futures-io",
- "futures-sink",
- "futures-task",
- "futures-util",
-]
-
-[[package]]
 name = "futures-channel"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1631,7 +1615,6 @@ version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d50a92467f8ba5dd6e3ee5d4bd04d73ab2e4e1c44474a0674821dfce14b79bc"
 dependencies = [
- "futures-channel",
  "futures-core",
  "futures-io",
  "futures-macro",
@@ -2419,15 +2402,6 @@ checksum = "173609498df190136aa7dea1a91db051746d339e18476eed5ca40521f02d7aa5"
 dependencies = [
  "is-docker",
  "once_cell",
-]
-
-[[package]]
-name = "itertools"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b4baf93f58d4425749ca49a51c50ebab072c5df6994d08fed93541c331481dc"
-dependencies = [
- "either",
 ]
 
 [[package]]
@@ -7137,18 +7111,15 @@ dependencies = [
 
 [[package]]
 name = "yomitan-parser"
-version = "0.1.0"
+version = "0.2.0"
+source = "git+https://github.com/patarapolw/cjk-dict#1b08fbe2ff4b27efa3f440d99ef6bbb1a73e9659"
 dependencies = [
- "futures",
- "itertools",
  "lindera",
  "lindera-analysis",
  "serde",
  "serde_json",
- "sqlx",
  "tokio",
  "unicode-normalization",
- "zip",
 ]
 
 [[package]]
