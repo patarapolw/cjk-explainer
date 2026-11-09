@@ -31,28 +31,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watchEffect } from "vue";
+import { computed } from "vue";
 import StructuredContent from "./StructuredContent.vue";
 
 const props = defineProps<{
   def: string | { type: string; [k: string]: any } | [string, string[]];
   dictionary: string;
-  getAssetSrc: (dict: string, path: string) => Promise<string>;
+  getAssetSrc: (dict: string, path: string) => string;
   onAnchorClicked?: (src: string) => void;
 }>();
 
-const resolvedSrc = ref("");
-watchEffect(async () => {
+const resolvedSrc = computed(() => {
   const d = props.def as any;
-  if (d && !Array.isArray(d) && d.type === "image" && d.path) {
-    try {
-      resolvedSrc.value = await props.getAssetSrc(props.dictionary, d.path);
-    } catch (err) {
-      console.error("Failed to resolve asset:", err);
-      resolvedSrc.value = "";
-    }
-  } else {
-    resolvedSrc.value = "";
-  }
+  return d && !Array.isArray(d) && d.type === "image" && d.path
+    ? props.getAssetSrc(props.dictionary, d.path)
+    : "";
 });
 </script>

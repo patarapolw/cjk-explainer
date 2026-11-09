@@ -31,7 +31,7 @@ import DefinitionEntry from "./DefinitionEntry.vue";
 const props = defineProps<{
   row: ITerm;
   dictionary: string;
-  getAssetSrc: (dict: string, path: string) => Promise<string>;
+  getAssetSrc: (dict: string, path: string) => string;
   onAnchorClicked?: (src: string) => void;
 }>();
 

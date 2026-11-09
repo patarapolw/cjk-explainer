@@ -63,7 +63,7 @@
 
 <script setup lang="ts">
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { computed, ref, watchEffect } from "vue";
+import { computed } from "vue";
 
 type StructuredContentNode =
   | string
@@ -73,7 +73,7 @@ type StructuredContentNode =
 const props = defineProps<{
   node: StructuredContentNode;
   dictionary: string;
-  getAssetSrc: (dict: string, path: string) => Promise<string>;
+  getAssetSrc: (dict: string, path: string) => string;
   onAnchorClicked?: (src: string) => void;
 }>();
 
@@ -172,19 +172,11 @@ const imageStyle = computed(() => {
   return style;
 });
 
-const resolvedSrc = ref("");
-watchEffect(async () => {
+const resolvedSrc = computed(() => {
   const node = props.node as any;
-  if (!node || node.tag !== "img" || !node.path) {
-    resolvedSrc.value = "";
-    return;
-  }
-  try {
-    resolvedSrc.value = await props.getAssetSrc(props.dictionary, node.path);
-  } catch (err) {
-    console.error("Failed to resolve asset:", err);
-    resolvedSrc.value = "";
-  }
+  return node && node.tag === "img" && node.path
+    ? props.getAssetSrc(props.dictionary, node.path)
+    : "";
 });
 
 function handleAnchorClick(e: MouseEvent) {

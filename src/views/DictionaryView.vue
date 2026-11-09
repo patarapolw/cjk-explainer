@@ -281,8 +281,8 @@ async function loadMore(isNew?: boolean) {
   }
 }
 
-async function getAssetSrc(dict: string, src: string) {
-  return await searchDB.assetSrc(dict, src);
+function getAssetSrc(dict: string, src: string) {
+  return searchDB.assetSrc(dict, src);
 }
 
 async function onAnchorClicked(href: string) {

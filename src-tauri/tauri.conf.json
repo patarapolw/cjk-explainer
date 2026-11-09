@@ -23,7 +23,7 @@
         "enable": true,
         "scope": ["$APPCONFIG/yomitan/*/**/*"]
       },
-      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost blob:"
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost https://*.workers.dev"
     }
   },
   "bundle": {

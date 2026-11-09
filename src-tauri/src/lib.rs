@@ -38,7 +38,6 @@ pub fn run() {
             download::download_and_unzip,
             tokenize::segment,
             tokenize::tokenize,
-            tokenize::normalize_reading,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

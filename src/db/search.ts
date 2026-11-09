@@ -5,8 +5,8 @@ import { settingsState } from "../util/settings";
 
 /**
  * Dictionary search is served by the cjk-dict worker (Cloudflare D1 + R2).
- * The client still tokenizes the query and expands pinyin locally (lindera + yomitan-parser),
- * then sends the result to the worker.
+ * The worker expands pinyin readings. The client only tokenizes "~" (fts) queries locally
+ * (lindera), since the tokenizer dictionaries are too large for a worker.
  *
  * @see https://github.com/patarapolw/cjk-dict
  */
@@ -58,8 +58,6 @@ type SearchResult = {
 const ALL_LANGS = ["ja-JP", "zh-CN", "ko-KR"];
 
 class SearchDatabase {
-  private assetCache = new Map<string, Promise<string>>();
-
   get baseURL() {
     const url = settingsState.computed.dictApiURL.value;
     if (!url) {
@@ -88,7 +86,7 @@ class SearchDatabase {
         type: opts.type,
         lang,
         term: opts.term,
-        readings: await this.readings(opts.reading, lang),
+        reading: opts.reading,
         tokens: opts.type === "fts" ? await this.tokens(opts.term, lang) : undefined,
         limit: opts.limit,
         offset: opts.offset,
@@ -109,34 +107,12 @@ class SearchDatabase {
     }
   }
 
-  /** Object URL for a file inside a dictionary zip (images in structured content). */
-  assetSrc(dict: string, path: string): Promise<string> {
-    const key = `${dict}\n${path}`;
-    let p = this.assetCache.get(key);
-    if (!p) {
-      const url = `${this.baseURL}/dicts/${encodeURIComponent(dict)}/assets/${path
-        .split("/")
-        .map(encodeURIComponent)
-        .join("/")}`;
-      p = fetch(url)
-        .then((r) => {
-          if (!r.ok) throw new Error(`GET ${url}: ${r.status}`);
-          return r.blob();
-        })
-        .then((b) => URL.createObjectURL(b));
-      p.catch(() => this.assetCache.delete(key));
-      this.assetCache.set(key, p);
-    }
-    return p;
-  }
-
-  private async readings(reading: string, lang: string) {
-    if (!reading) return [];
-    if (!lang || lang === "zh-CN") {
-      const segments = await invoke<string[]>("normalize_reading", { reading });
-      if (segments.length) return segments;
-    }
-    return [reading];
+  /** URL of a media file (structured-content images), for a plain `<img src>`. */
+  assetSrc(dict: string, path: string): string {
+    return `${this.baseURL}/dicts/${encodeURIComponent(dict)}/assets/${path
+      .split("/")
+      .map(encodeURIComponent)
+      .join("/")}`;
   }
 
   private async tokens(term: string, lang: string) {
