@@ -1,13 +1,14 @@
 use std::{error::Error, fmt, sync::PoisonError};
 
-use yomitan_parser::error::YomitanError;
+use lindera::error::LinderaError;
 use zip::result::ZipError;
 
 #[derive(Debug)]
 pub enum AppError {
     TauriError(tauri::Error),
     TauriReqwestError(tauri_plugin_http::reqwest::Error),
-    YomitanError(YomitanError),
+    LinderaError(LinderaError),
+    UnsupportedLanguageError(String),
     MutexPoisonedError(String),
     IOError(std::io::Error),
     ZipError(ZipError),
@@ -20,7 +21,8 @@ impl fmt::Display for AppError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::TauriError(e) => write!(f, "tauri::Error: {e}"),
-            Self::YomitanError(e) => write!(f, "YomitanError: {e}"),
+            Self::LinderaError(e) => write!(f, "LinderaError: {e}"),
+            Self::UnsupportedLanguageError(e) => write!(f, "UnsupportedLanguageError: {e}"),
             Self::TauriReqwestError(e) => write!(f, "TauriReqwest: {e}"),
             Self::MutexPoisonedError(e) => write!(f, "MutexPoisoned: {e}"),
             Self::IOError(e) => write!(f, "IOError: {e}"),
@@ -46,9 +48,9 @@ impl From<tauri_plugin_http::reqwest::Error> for AppError {
     }
 }
 
-impl From<YomitanError> for AppError {
-    fn from(e: YomitanError) -> Self {
-        Self::YomitanError(e)
+impl From<LinderaError> for AppError {
+    fn from(e: LinderaError) -> Self {
+        Self::LinderaError(e)
     }
 }
 

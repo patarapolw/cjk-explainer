@@ -636,6 +636,8 @@ dependencies = [
 name = "cjk-explainer"
 version = "0.1.0"
 dependencies = [
+ "lindera",
+ "lindera-analysis",
  "serde",
  "serde_json",
  "tauri",
@@ -646,7 +648,6 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-sql",
  "tokio",
- "yomitan-parser",
  "zip",
 ]
 
@@ -7107,19 +7108,6 @@ dependencies = [
  "quote",
  "syn 3.0.6",
  "synstructure",
-]
-
-[[package]]
-name = "yomitan-parser"
-version = "0.2.0"
-source = "git+https://github.com/patarapolw/cjk-dict#5b45d3df020c11242d14486e0d262247d467a05d"
-dependencies = [
- "lindera",
- "lindera-analysis",
- "serde",
- "serde_json",
- "tokio",
- "unicode-normalization",
 ]
 
 [[package]]

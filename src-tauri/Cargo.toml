@@ -26,7 +26,8 @@ tauri-plugin-clipboard-manager = "2"
 tauri-plugin-http = "2.6.0"
 tauri-plugin-sql = { version = "2.4.1", features = ["sqlite"] }
 tauri-plugin-fs = "2.6.0"
-tokio = { version = "1.53.1", features = ["io-util"] }
+tokio = { version = "1.53.1", features = ["io-util", "rt", "sync"] }
 zip = "8.6.0"
-# tokenizer + pinyin helpers; dictionaries themselves are served by the cjk-dict worker
-yomitan-parser = { git = "https://github.com/patarapolw/cjk-dict" }
+# query tokenizer for "~" dictionary search; dictionaries themselves are served by cjk-dict
+lindera = "6.2.0"
+lindera-analysis = "6.2.0"

@@ -1,7 +1,6 @@
 use tauri::State;
-use yomitan_parser::{error::YomitanError, tokenize::Lang};
 
-use crate::{AppState, error::AppError};
+use crate::{AppState, error::AppError, query_tokenizer::Lang};
 
 #[tauri::command]
 pub async fn segment(
@@ -12,7 +11,7 @@ pub async fn segment(
     Ok(state
         .tokenizer_mapper
         .segment(
-            Lang::from(lang).ok_or(YomitanError::UnsupportedLanguageError(lang.to_string()))?,
+            Lang::from(lang).ok_or(AppError::UnsupportedLanguageError(lang.to_string()))?,
             text,
         )
         .await?)
@@ -27,7 +26,7 @@ pub async fn tokenize(
     Ok(state
         .tokenizer_mapper
         .tokenize(
-            Lang::from(lang).ok_or(YomitanError::UnsupportedLanguageError(lang.to_string()))?,
+            Lang::from(lang).ok_or(AppError::UnsupportedLanguageError(lang.to_string()))?,
             text,
         )
         .await?)

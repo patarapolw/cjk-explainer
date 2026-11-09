@@ -1,9 +1,11 @@
 use tauri::Manager;
-use yomitan_parser::tokenize::TokenizerMapper;
+
+use crate::query_tokenizer::TokenizerMapper;
 
 mod db;
 mod download;
 mod error;
+mod query_tokenizer;
 mod shared;
 mod tokenize;
 
