@@ -82,12 +82,24 @@ class SearchDatabase {
     const start = new Date();
     try {
       const lang = settingsState.computed.lang.value;
+
+      let type = opts.type;
+      let tokens: Record<string, string> | undefined;
+      if (type === "fts") {
+        tokens = await this.tokens(opts.term, lang);
+        if (opts.term && !Object.keys(tokens).length) {
+          // tokenizer not downloaded (yet) or failed: fall back to prefix search
+          type = null;
+          tokens = undefined;
+        }
+      }
+
       const body = {
-        type: opts.type,
+        type,
         lang,
         term: opts.term,
         reading: opts.reading,
-        tokens: opts.type === "fts" ? await this.tokens(opts.term, lang) : undefined,
+        tokens,
         limit: opts.limit,
         offset: opts.offset,
       };
@@ -121,6 +133,10 @@ class SearchDatabase {
       (lang ? [lang] : ALL_LANGS).map((subLang) =>
         invoke<string[]>("tokenize", { lang: subLang, text: term }).then(
           (ts) => [subLang.split("-")[0], ts.join(" ")] as const,
+          (e) => {
+            console.warn(`tokenize ${subLang} unavailable`, e);
+            return [subLang.split("-")[0], ""] as const;
+          },
         ),
       ),
     );

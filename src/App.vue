@@ -89,16 +89,44 @@
       <RouterView />
     </SidebarMain>
   </SidebarLayout>
-  <Dialog :visible="toBeLoaded.length > 0" modal :closable="false">
-    <div class="modal-content">
-      <template
+  <!-- Background downloads: non-modal, the app stays usable meanwhile -->
+  <aside
+    v-if="toBeLoaded.length || loadErrors.length"
+    class="downloads"
+    :class="{ collapsed: downloadsCollapsed }"
+    aria-live="polite"
+  >
+    <header class="downloads-header">
+      <span v-if="toBeLoaded.length">
+        Downloading tokenizer ({{ toBeLoaded.length }} left)
+      </span>
+      <span v-else>Tokenizer download failed</span>
+      <Button
+        :label="downloadsCollapsed ? 'Show' : 'Hide'"
+        size="small"
+        text
+        @click="downloadsCollapsed = !downloadsCollapsed"
+      />
+      <Button
+        v-if="!toBeLoaded.length"
+        label="Dismiss"
+        size="small"
+        text
+        @click="loadErrors = []"
+      />
+    </header>
+    <div v-show="!downloadsCollapsed" class="downloads-body">
+      <Downloading
         v-for="d in toBeLoaded"
         :key="d.filename"
-      >
-        <Downloading ref="loading" v-bind="d" />
-      </template>
+        ref="loading"
+        v-bind="d"
+      />
+      <p v-for="e in loadErrors" :key="e.filename" class="downloads-error">
+        {{ e.filename }}: {{ e.error }} (will retry on next launch)
+      </p>
     </div>
-  </Dialog>
+  </aside>
 </template>
 
 <script setup lang="ts">
@@ -111,7 +139,7 @@ import {
   watch,
 } from "vue";
 
-import Dialog from "primevue/dialog";
+import Button from "primevue/button";
 import Select from "primevue/select";
 import Sidebar from "primevue/sidebar";
 import SidebarAside from "primevue/sidebaraside";
@@ -135,7 +163,7 @@ import TextColorIcon from "@primeicons/vue/text-color";
 
 import Downloading from "./components/Downloading.vue";
 
-import { toBeLoaded } from "./util/loading.ts";
+import { loadErrors, toBeLoaded } from "./util/loading.ts";
 import { settingsState } from "./util/settings.ts";
 import { makeLinderaDownloadList } from "./util/tokenize";
 
@@ -143,6 +171,7 @@ import { makeLinderaDownloadList } from "./util/tokenize";
 const elLoading = useTemplateRef("loading");
 
 const isMobile = ref(false);
+const downloadsCollapsed = ref(false);
 const navOpen = ref(false);
 const open = ref(false);
 
@@ -177,16 +206,36 @@ onBeforeUnmount(() => {
   }
 });
 
-watch(toBeLoaded, () => {
-  nextTick(() => {
-    const firstLoader = elLoading.value?.[0];
-    if (firstLoader) {
-      firstLoader.start().then(() => {
-        // Exhaustive loop via vue::watch
-        toBeLoaded.value = toBeLoaded.value.slice(1);
-      });
+// Process downloads one at a time in the background. A failure is recorded and skipped,
+// so the queue never stalls.
+let queueRunning = false;
+async function runQueue() {
+  if (queueRunning) return;
+  queueRunning = true;
+  try {
+    while (toBeLoaded.value.length) {
+      await nextTick();
+      const current = toBeLoaded.value[0];
+      const loader = elLoading.value?.[0];
+      try {
+        if (!loader) throw new Error("download component not mounted");
+        await loader.start();
+      } catch (e) {
+        console.error(e);
+        loadErrors.value = [
+          ...loadErrors.value,
+          { filename: current.filename, error: String(e) },
+        ];
+      }
+      toBeLoaded.value = toBeLoaded.value.filter((d) => d !== current);
     }
-  });
+  } finally {
+    queueRunning = false;
+  }
+}
+
+watch(toBeLoaded, () => {
+  if (toBeLoaded.value.length) runQueue();
 });
 
 async function loadAll() {
@@ -217,9 +266,38 @@ async function loadAll() {
   flex-grow: 1;
 }
 
-.modal-content {
-  width: calc(100vw - 4em);
-  max-width: 1000px;
-  height: calc(80vh - 4em);
+.downloads {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  width: min(26rem, calc(100vw - 2rem));
+  max-height: 40vh;
+  overflow: auto;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--p-content-border-color, #ccc);
+  border-radius: 0.5rem;
+  background: var(--p-content-background, #fff);
+  color: var(--p-text-color, inherit);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.15);
+  font-size: 0.875rem;
+}
+
+.downloads.collapsed {
+  width: auto;
+}
+
+.downloads-header {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.downloads-header > span {
+  flex-grow: 1;
+}
+
+.downloads-error {
+  color: var(--p-red-500, #c00);
 }
 </style>

@@ -1,6 +1,7 @@
 import "./index.css";
 
 import PrimeVue from "primevue/config";
+import Tooltip from "primevue/tooltip";
 import { createApp } from "vue";
 
 import Aura from "@primeuix/themes/aura";
@@ -19,6 +20,7 @@ app
     },
     license: import.meta.env.VITE_PRIMEUI_LICENSE_KEY,
   })
+  .directive("tooltip", Tooltip)
   .use(router)
   .mount("#app");
 

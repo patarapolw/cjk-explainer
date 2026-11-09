@@ -82,15 +82,42 @@ pub async fn download_and_unzip(
         )?;
     }
 
-    tokio::task::spawn_blocking(move || unzip_sync(zip_filepath, out_path)).await??;
+    let zip = zip_filepath.clone();
+    tokio::task::spawn_blocking(move || unzip_sync(zip, out_path)).await??;
+    // extracted: the cached zip is no longer needed
+    let _ = remove_file(&zip_filepath).await;
 
     Ok(true)
 }
 
-fn unzip_sync(filepath: PathBuf, out_dir: PathBuf) -> zip::result::ZipResult<()> {
+/// Extract into a staging dir next to `out_dir`, then move each top-level entry into place,
+/// so an interrupted unzip never leaves a half-extracted `out_dir/<entry>` that looks installed.
+fn unzip_sync(filepath: PathBuf, out_dir: PathBuf) -> Result<(), AppError> {
+    let stem = filepath
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let staging = out_dir.join(format!(".extract-{stem}"));
+    if staging.exists() {
+        std::fs::remove_dir_all(&staging)?;
+    }
+    std::fs::create_dir_all(&staging)?;
+
     let file = std::fs::File::open(&filepath)?; // Use sync version in thread
     let mut archive = ZipArchive::new(file)?;
-    archive.extract(&out_dir)?;
+    archive.extract(&staging)?;
+
+    for entry in std::fs::read_dir(&staging)? {
+        let entry = entry?;
+        let target = out_dir.join(entry.file_name());
+        if target.is_dir() {
+            std::fs::remove_dir_all(&target)?;
+        } else if target.exists() {
+            std::fs::remove_file(&target)?;
+        }
+        std::fs::rename(entry.path(), &target)?;
+    }
+    std::fs::remove_dir_all(&staging)?;
 
     println!("Unzipped {:?} to {:?}", &filepath, &out_dir);
     Ok(())
@@ -105,6 +132,8 @@ struct DownloadProgress {
     downloaded: u64,
 }
 
+/// Download to `<filename>.dl-tmp` (resuming it with a Range request if present),
+/// and rename to `<filename>` only once complete.
 async fn download_url_local<Callback>(
     url: &str,
     out_dir: &PathBuf,
@@ -114,13 +143,14 @@ async fn download_url_local<Callback>(
 where
     Callback: Fn(DownloadProgress),
 {
+    tokio::fs::create_dir_all(out_dir).await?;
+
     let client = reqwest::Client::new();
     let file_pf = out_dir.join(filename);
-
     let temp_pf = out_dir.join(format!("{}.dl-tmp", filename));
-    let temp_path = temp_pf.as_path();
+
     // Check existing partial download size
-    let existing_size = tokio::fs::metadata(temp_path)
+    let existing_size = tokio::fs::metadata(&temp_pf)
         .await
         .map(|m| m.len())
         .unwrap_or(0);
@@ -131,54 +161,55 @@ where
         request = request.header("Range", format!("bytes={}-", existing_size));
     }
 
-    // Making the asynchronous GET request
     let mut response = request.send().await?;
-
-    // Check if the request was successful
-    if response.status().is_success() {
-        let content_length = response.content_length().unwrap_or(0);
-        let mut file = if existing_size > 0 {
-            tokio::fs::OpenOptions::new()
-                .append(true)
-                .open(temp_path)
-                .await?
-        } else {
-            tokio::fs::File::create(&file_pf).await?
-        };
-
-        // Downloading the file in chunks
-        let mut downloaded: u64 = 0;
-        while let Some(chunk) = response.chunk().await? {
-            file.write_all(&chunk).await?;
-            downloaded += chunk.len() as u64;
-
-            callback(DownloadProgress {
-                url: url.to_owned(),
-                filepath: filename.to_owned(),
-                content_length,
-                downloaded,
-            });
-        }
-
-        // Verify download completeness
-        if content_length > 0 && downloaded < content_length {
-            // Delete incomplete file
-            drop(file); // ensure file handle is released before deleting
-            remove_file(&file_pf).await?;
-            return Err(AppError::Error(format!(
-                "Incomplete download: expected {} bytes, got {}",
-                content_length, downloaded
-            )));
-        }
-
-        println!(
-            "File downloaded {} MB to {:?}",
-            content_length >> 20,
-            &file_pf
-        );
-    } else {
-        eprintln!("Failed to download file: {:?}", response.status());
+    let status = response.status();
+    if !status.is_success() {
+        return Err(AppError::Error(format!("GET {url}: {status}")));
     }
+
+    // 206 = server honored the Range; anything else restarts from zero
+    let resumed = existing_size > 0 && status == reqwest::StatusCode::PARTIAL_CONTENT;
+    let mut downloaded: u64 = if resumed { existing_size } else { 0 };
+    let content_length = response
+        .content_length()
+        .map(|n| n + downloaded)
+        .unwrap_or(0);
+
+    let mut file = if resumed {
+        tokio::fs::OpenOptions::new()
+            .append(true)
+            .open(&temp_pf)
+            .await?
+    } else {
+        tokio::fs::File::create(&temp_pf).await?
+    };
+
+    // Downloading the file in chunks
+    while let Some(chunk) = response.chunk().await? {
+        file.write_all(&chunk).await?;
+        downloaded += chunk.len() as u64;
+
+        callback(DownloadProgress {
+            url: url.to_owned(),
+            filepath: filename.to_owned(),
+            content_length,
+            downloaded,
+        });
+    }
+    file.flush().await?;
+    drop(file); // ensure file handle is released before renaming
+
+    // Verify download completeness; keep the partial file for resuming next time
+    if content_length > 0 && downloaded < content_length {
+        return Err(AppError::Error(format!(
+            "Incomplete download: expected {} bytes, got {}",
+            content_length, downloaded
+        )));
+    }
+
+    tokio::fs::rename(&temp_pf, &file_pf).await?;
+
+    println!("File downloaded {} MB to {:?}", downloaded >> 20, &file_pf);
 
     Ok(true)
 }

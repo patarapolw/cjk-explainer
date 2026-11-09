@@ -19,3 +19,6 @@ export interface UnzipProgress {
 }
 
 export const toBeLoaded = ref<DownloadingProps[]>([]);
+
+/** Downloads that failed this session (retried on next launch). */
+export const loadErrors = ref<{ filename: string; error: string }[]>([]);

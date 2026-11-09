@@ -20,6 +20,12 @@
             :options="qStateOptions"
             option-label="label"
             option-value="value"
+            option-disabled="disabled"
+            v-tooltip.bottom="
+              tokenizerPending
+                ? '~ (token search) is available once the tokenizer download finishes'
+                : undefined
+            "
           />
         </InputGroupAddon>
       </InputGroup>
@@ -92,6 +98,7 @@ import InputText from "primevue/inputtext";
 import SelectButton from "primevue/selectbutton";
 
 import {
+  computed,
   nextTick,
   onBeforeUnmount,
   onMounted,
@@ -105,6 +112,7 @@ import { readText } from "@tauri-apps/plugin-clipboard-manager";
 import { useRoute, useRouter } from "vue-router";
 import Term from "../components/yomitan/Term.vue";
 import { ISearchTerm, ITerm, searchDB } from "../db/search";
+import { toBeLoaded } from "../util/loading";
 import { settingsState } from "../util/settings";
 
 const q = ref("");
@@ -112,9 +120,11 @@ const reading = ref("");
 const items = ref<(ISearchTerm & { entries: ITerm[] })[]>([]);
 const openedItems = ref<number[]>([]);
 
-const qStateOptions = ref([
-  { label: "~", value: "fts" },
-  { label: "=", value: "exact" },
+// "~" needs the lindera tokenizer, which downloads in the background on first launch
+const tokenizerPending = computed(() => toBeLoaded.value.length > 0);
+const qStateOptions = computed(() => [
+  { label: "~", value: "fts", disabled: tokenizerPending.value },
+  { label: "=", value: "exact", disabled: false },
 ]);
 const qState = ref<string | null>(null);
 
