@@ -11,8 +11,9 @@ Built with [Tauri](https://tauri.app/) + [Vue 3](https://vuejs.org/) + TypeScrip
 - **Sentence-by-sentence explanations** — text is split into sentences; tap any sentence containing CJK characters to get an on-demand explanation.
 - **AI-powered breakdowns** — explanations are streamed from the DeepSeek API and include a short summary of how the sentence works plus a vocabulary table with readings.
 - **Local caching** — explanations are saved to a local SQLite database (via `tauri-plugin-sql`), so re-opening a sentence you've already explained is instant and works offline.
-- **Dictionary lookup** — Yomitan dictionaries are searched through the [cjk-dict](https://github.com/patarapolw/cjk-dict) server (Cloudflare Worker + D1 + R2). Nothing is imported on the device. Only the lindera tokenizer dictionaries are downloaded, for query tokenization.
 - **Reasoning trace** — if the model returns intermediate "thinking" output, it's shown collapsed under the explanation for transparency.
+
+Dictionary lookup lives in its own app, [cjk-dict](https://github.com/patarapolw/cjk-dict).
 
 ## Prerequisites
 
@@ -32,8 +33,6 @@ pnpm start
 ```
 
 On first launch, open **Settings** and paste in your DeepSeek API key — it's stored locally and used to authenticate explanation requests.
-
-For dictionary search, set **Settings → Dictionary → Server URL** to your deployed cjk-dict worker (or set `VITE_DICT_API_URL` in `.env`). Dictionaries are added or removed on the server with `dict-admin`; see the cjk-dict README. The Tauri HTTP capability allows `https://*.workers.dev/*`, and the CSP `img-src` allows `https://*.workers.dev`. If you use a custom domain, add it to both `src-tauri/capabilities/default.json` and `src-tauri/tauri.conf.json`.
 
 ### Android
 

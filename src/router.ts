@@ -1,12 +1,7 @@
 import { createRouter, createWebHashHistory } from "vue-router";
 
 const routes = [
-  { path: "/", redirect: "/dictionary" },
-  {
-    path: "/dictionary",
-    component: () => import("./views/DictionaryView.vue"),
-    name: "Dictionary",
-  },
+  { path: "/", redirect: "/explain" },
   {
     path: "/explain",
     component: () => import("./views/ExplainView.vue"),

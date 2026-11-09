@@ -7,8 +7,6 @@ interface ISettingsState {
   supabasePublishableKey?: string;
   supabaseUsername?: string;
   supabasePassword?: string;
-  /** cjk-dict worker, e.g. https://cjk-dict.<account>.workers.dev */
-  dictApiURL?: string;
   lang: string;
 }
 
@@ -34,7 +32,6 @@ class SettingsState {
     supabasePublishableKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
     supabaseUsername: import.meta.env.VITE_SUPABASE_USER,
     supabasePassword: import.meta.env.VITE_SUPABASE_USER_PASSWORD,
-    dictApiURL: import.meta.env.VITE_DICT_API_URL,
     lang: "",
   };
 
